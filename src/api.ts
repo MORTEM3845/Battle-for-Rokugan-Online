@@ -1,4 +1,4 @@
-import type { ClanId, PlayerSession, RoomSessionResponse, RoomState } from '../shared/room';
+import type { ClanId, OrderTarget, PlayerSession, RoomSessionResponse, RoomState } from '../shared/room';
 
 async function request<T>(url: string, init?: RequestInit, token?: string): Promise<T> {
     const headers = new Headers(init?.headers);
@@ -8,9 +8,12 @@ async function request<T>(url: string, init?: RequestInit, token?: string): Prom
         headers.set('x-player-token', token);
 
     const response = await fetch(url, { ...init, headers });
-    const data = await response.json() as T | { error?: string };
-    if (!response.ok)
-        throw new Error('error' in data && data.error ? data.error : `Ошибка HTTP ${response.status}`);
+    const data = await response.json() as unknown;
+    if (!response.ok) {
+        const message = typeof data === 'object' && data !== null && 'error' in data &&
+            typeof data.error === 'string' ? data.error : `Ошибка HTTP ${response.status}`;
+        throw new Error(message);
+    }
     return data as T;
 }
 
@@ -23,7 +26,9 @@ export const roomApi = {
         method: 'POST', body: JSON.stringify({ playerName })
     }),
 
-    get: (code: string) => request<RoomState>(`/api/rooms/${code}`),
+    get: (code: string, session?: PlayerSession | null) => request<RoomState>(
+        `/api/rooms/${code}`, undefined, session?.playerToken
+    ),
 
     selectClan: (session: PlayerSession, clanId: ClanId) => request<RoomState>(
         `/api/rooms/${session.roomCode}/clan`,
@@ -47,5 +52,15 @@ export const roomApi = {
 
     start: (session: PlayerSession) => request<RoomState>(
         `/api/rooms/${session.roomCode}/start`, { method: 'POST' }, session.playerToken
+    ),
+
+    advanceGame: (session: PlayerSession) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/advance`, { method: 'POST' }, session.playerToken
+    ),
+
+    placeOrder: (session: PlayerSession, tokenId: string, target: OrderTarget) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/orders`,
+        { method: 'POST', body: JSON.stringify({ tokenId, target }) },
+        session.playerToken
     )
 };

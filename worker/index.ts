@@ -64,7 +64,7 @@ export default {
 
         const stub = getRoomStub(env, code);
         if (request.method === 'GET' && parts.length === 3)
-            return stub.fetch('https://room/state');
+            return forward(request, stub, '/state');
         if (request.method === 'POST' && parts[3] === 'join')
             return forward(request, stub, '/join');
         if (request.method === 'POST' && parts[3] === 'clan')
@@ -77,6 +77,10 @@ export default {
             return forward(request, stub, `/bots/${encodeURIComponent(parts[4])}`);
         if (request.method === 'POST' && parts[3] === 'start')
             return forward(request, stub, '/start');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'advance')
+            return forward(request, stub, '/game/advance');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'orders')
+            return forward(request, stub, '/game/orders');
 
         return json({ error: 'Маршрут API не найден' }, 404);
     }

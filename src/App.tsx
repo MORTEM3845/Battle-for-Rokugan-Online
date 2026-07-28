@@ -110,7 +110,7 @@ function RoomPage({ code }: { code: string }) {
 
         const refresh = async () => {
             try {
-                const state = await roomApi.get(code);
+                const state = await roomApi.get(code, session);
                 if (active) {
                     setRoom(state);
                     setError('');
@@ -129,7 +129,7 @@ function RoomPage({ code }: { code: string }) {
             active = false;
             clearTimeout(timer);
         };
-    }, [code]);
+    }, [code, session]);
 
     async function run(action: () => Promise<RoomState>) {
         try {
@@ -180,11 +180,13 @@ function RoomPage({ code }: { code: string }) {
     }
 
     if (room.status === 'playing') {
-        return <GameBoard room={room} currentPlayerId={currentPlayer.id} />;
+        return <GameBoard room={room} currentPlayerId={currentPlayer.id} busy={busy} error={error}
+            onAdvance={() => run(() => roomApi.advanceGame(session))}
+            onPlaceOrder={(tokenId, target) => run(() => roomApi.placeOrder(session, tokenId, target))} />;
     }
 
     const inviteUrl = `${location.origin}/room/${code}`;
-    const canStart = room.players.length === 2 && room.players.every(player => player.clanId && player.isReady);
+    const canStart = room.players.length >= 2 && room.players.every(player => player.clanId && player.isReady);
 
     return <main className="page lobby-page">
         <header className="lobby-header">
