@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CLANS, type ClanId, type PlayerSession, type RoomState } from '../shared/room';
 import { roomApi } from './api';
+import { GameBoard } from './game/GameBoard';
 
 const sessionKey = (code: string) => `rokugan-session-${code}`;
 
@@ -179,14 +180,7 @@ function RoomPage({ code }: { code: string }) {
     }
 
     if (room.status === 'playing') {
-        return <main className="page">
-            <section className="panel game-placeholder">
-                <p className="eyebrow">Комната {code}</p>
-                <h1>Игра началась</h1>
-                <p className="lead">Лобби работает. Следующий модуль — начальная расстановка и карта Рокугана.</p>
-                <div className="players-grid">{room.players.map(player => <PlayerCard key={player.id} player={player} />)}</div>
-            </section>
-        </main>;
+        return <GameBoard room={room} currentPlayerId={currentPlayer.id} />;
     }
 
     const inviteUrl = `${location.origin}/room/${code}`;
