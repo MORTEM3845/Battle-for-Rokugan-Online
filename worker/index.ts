@@ -1,0 +1,83 @@
+import { RoomObject } from './RoomObject';
+
+export { RoomObject };
+
+interface Env {
+    ROOMS: DurableObjectNamespace;
+}
+
+const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8' }
+});
+
+function createRoomCode(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    return Array.from(bytes, value => ROOM_CODE_CHARS[value % ROOM_CODE_CHARS.length]).join('');
+}
+
+function getRoomStub(env: Env, code: string): DurableObjectStub {
+    return env.ROOMS.get(env.ROOMS.idFromName(code));
+}
+
+function normalizeCode(value: string): string {
+    return value.trim().toUpperCase();
+}
+
+async function forward(request: Request, stub: DurableObjectStub, path: string): Promise<Response> {
+    return stub.fetch(new Request(`https://room${path}`, request));
+}
+
+export default {
+    async fetch(request: Request, env: Env): Promise<Response> {
+        const url = new URL(request.url);
+        const parts = url.pathname.split('/').filter(Boolean);
+
+        if (url.pathname === '/api/health')
+            return json({ status: 'ok' });
+
+        if (request.method === 'POST' && url.pathname === '/api/rooms') {
+            const body = await request.json<{ playerName: string }>();
+
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const code = createRoomCode();
+                const response = await getRoomStub(env, code).fetch('https://room/create', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ code, playerName: body.playerName })
+                });
+                if (response.status !== 409)
+                    return response;
+            }
+
+            return json({ error: 'Не удалось создать уникальный код комнаты' }, 500);
+        }
+
+        if (parts[0] !== 'api' || parts[1] !== 'rooms' || !parts[2])
+            return json({ error: 'Маршрут API не найден' }, 404);
+
+        const code = normalizeCode(parts[2]);
+        if (!/^[A-Z2-9]{6}$/.test(code))
+            return json({ error: 'Некорректный код комнаты' }, 400);
+
+        const stub = getRoomStub(env, code);
+        if (request.method === 'GET' && parts.length === 3)
+            return stub.fetch('https://room/state');
+        if (request.method === 'POST' && parts[3] === 'join')
+            return forward(request, stub, '/join');
+        if (request.method === 'POST' && parts[3] === 'clan')
+            return forward(request, stub, '/clan');
+        if (request.method === 'POST' && parts[3] === 'ready')
+            return forward(request, stub, '/ready');
+        if (request.method === 'POST' && parts[3] === 'bots')
+            return forward(request, stub, '/bots');
+        if (request.method === 'DELETE' && parts[3] === 'bots' && parts[4])
+            return forward(request, stub, `/bots/${encodeURIComponent(parts[4])}`);
+        if (request.method === 'POST' && parts[3] === 'start')
+            return forward(request, stub, '/start');
+
+        return json({ error: 'Маршрут API не найден' }, 404);
+    }
+};
