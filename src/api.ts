@@ -62,5 +62,17 @@ export const roomApi = {
         `/api/rooms/${session.roomCode}/game/orders`,
         { method: 'POST', body: JSON.stringify({ tokenId, target }) },
         session.playerToken
+    ),
+
+    placeControl: (session: PlayerSession, provinceId: string) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/control`,
+        { method: 'POST', body: JSON.stringify({ provinceId }) },
+        session.playerToken
+    ),
+
+    playBotTurn: (session: PlayerSession) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/bot-turn`,
+        { method: 'POST' },
+        session.playerToken
     )
 };

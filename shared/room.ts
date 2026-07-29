@@ -21,11 +21,13 @@ export interface BattleTokenView {
     id: string;
     type: BattleTokenType;
     strength: number | null;
+    isClanSpecial: boolean;
 }
 
 export interface OrderTarget {
     kind: OrderTargetKind;
     id: string;
+    provinceId?: string;
 }
 
 export interface PlacedOrderView {
@@ -44,6 +46,18 @@ export interface GamePlayerView {
     discardCount: number;
     placedCount: number;
     provinceCount: number;
+    setupRemaining: number;
+}
+
+export interface TokenPoolCountView {
+    type: BattleTokenType;
+    strength: number | null;
+    stock: number;
+    hand: number;
+    discard: number;
+    placed: number;
+    commonTotal: number;
+    specialTotal: number;
 }
 
 export interface GameViewState {
@@ -56,6 +70,7 @@ export interface GameViewState {
     provinces: Record<string, string | null>;
     orders: PlacedOrderView[];
     hand: BattleTokenView[];
+    tokenPool: TokenPoolCountView[];
 }
 
 export interface RoomPlayer {

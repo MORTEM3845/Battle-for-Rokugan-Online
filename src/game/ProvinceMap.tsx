@@ -1,14 +1,23 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
-import { adjacentProvinceIds, COASTAL_PROVINCES, LAND_BORDERS, PROVINCE_CENTERS, SEA_BORDERS } from '../../shared/map';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import {
+    adjacentProvinceIds,
+    COASTAL_PROVINCES,
+    LAND_BORDERS,
+    PROVINCE_CENTERS,
+    PROVINCE_NAMES,
+    SEA_BORDERS,
+    type MapPoint
+} from '../../shared/map';
 import type {
     BattleTokenView,
     GameViewState,
     OrderTarget,
+    PlacedOrderView,
     RoomPlayer,
     VisibleTokenType
 } from '../../shared/room';
 import provinceSvg from '../assets/rokugan-provinces.svg?raw';
-import { CLAN_COLORS, TOKEN_INFO } from './GameBoard';
+import { CLAN_COLORS, CLAN_MON, TOKEN_INFO } from './GameBoard';
 
 interface ProvinceMapProps {
     game: GameViewState;
@@ -16,8 +25,10 @@ interface ProvinceMapProps {
     currentPlayerId: string;
     hoveredPlayerId: string | null;
     selectedToken: BattleTokenView | null;
-    disabled: boolean;
+    orderPlacementDisabled: boolean;
+    controlPlacementActive: boolean;
     onTarget: (target: OrderTarget) => void;
+    onPlaceControl: (provinceId: string) => void;
 }
 
 function findProvince(target: EventTarget | null): SVGPathElement | null {
@@ -25,10 +36,20 @@ function findProvince(target: EventTarget | null): SVGPathElement | null {
 }
 
 export function ProvinceMap(props: ProvinceMapProps) {
-    const { game, players, currentPlayerId, hoveredPlayerId, selectedToken, disabled, onTarget } = props;
+    const {
+        game,
+        players,
+        currentPlayerId,
+        hoveredPlayerId,
+        selectedToken,
+        orderPlacementDisabled,
+        controlPlacementActive,
+        onTarget,
+        onPlaceControl
+    } = props;
     const layerRef = useRef<HTMLDivElement>(null);
-    const [hoveredProvince, setHoveredProvince] = useState<string | null>(null);
-    const playersById = Object.fromEntries(players.map(player => [player.id, player]));
+    const [hoveredProvinceId, setHoveredProvinceId] = useState<string | null>(null);
+    const playersById = useMemo(() => Object.fromEntries(players.map(player => [player.id, player])), [players]);
 
     useEffect(() => {
         const paths = layerRef.current?.querySelectorAll<SVGPathElement>('path[data-province-id]');
@@ -36,24 +57,38 @@ export function ProvinceMap(props: ProvinceMapProps) {
             const id = path.dataset.provinceId!;
             const ownerId = game.provinces[id];
             const owner = ownerId ? playersById[ownerId] : undefined;
+            const validOrderTarget = !!selectedToken && provinceIsEligible(selectedToken, id, game, currentPlayerId);
+            const validControlTarget = controlPlacementActive && game.provinces[id] === null;
+
+            path.dataset.provinceName = PROVINCE_NAMES[id];
+            path.setAttribute('aria-label', PROVINCE_NAMES[id]);
+            const title = path.querySelector('title');
+            if (title)
+                title.textContent = PROVINCE_NAMES[id];
+
             path.classList.toggle('is-owned', !!owner);
             path.classList.toggle('is-player-highlight', !!ownerId && ownerId === hoveredPlayerId);
-            path.classList.toggle('is-valid-target', !disabled && !!selectedToken &&
-                provinceIsEligible(selectedToken, id, game, currentPlayerId));
+            path.classList.toggle('is-valid-target', validControlTarget || (!orderPlacementDisabled && validOrderTarget));
             if (owner?.clanId)
                 path.style.setProperty('--owner-color', CLAN_COLORS[owner.clanId]);
             else
                 path.style.removeProperty('--owner-color');
         });
-    }, [currentPlayerId, disabled, game, hoveredPlayerId, playersById, selectedToken]);
+    }, [controlPlacementActive, currentPlayerId, game, hoveredPlayerId, orderPlacementDisabled, playersById, selectedToken]);
 
     function handleMapClick(event: MouseEvent<HTMLDivElement>) {
         const path = findProvince(event.target);
-        if (!path || disabled || !selectedToken)
+        if (!path)
             return;
+
         const id = path.dataset.provinceId!;
-        if (provinceIsEligible(selectedToken, id, game, currentPlayerId))
-            onTarget({ kind: 'province', id });
+        if (controlPlacementActive && game.provinces[id] === null) {
+            onPlaceControl(id);
+            return;
+        }
+
+        if (!orderPlacementDisabled && selectedToken && provinceIsEligible(selectedToken, id, game, currentPlayerId))
+            onTarget({ kind: 'province', id, provinceId: id });
     }
 
     const landTargets = selectedToken && ['army', 'blank'].includes(selectedToken.type);
@@ -64,8 +99,8 @@ export function ProvinceMap(props: ProvinceMapProps) {
         <div className="rotated-map">
             <img className="rokugan-map-image" src="/assets/rokugan-map.webp" alt="Карта Рокугана" draggable={false} />
             <div ref={layerRef} className="province-layer"
-                onPointerMove={event => setHoveredProvince(findProvince(event.target)?.dataset.provinceName ?? null)}
-                onPointerLeave={() => setHoveredProvince(null)}
+                onPointerMove={event => setHoveredProvinceId(findProvince(event.target)?.dataset.provinceId ?? null)}
+                onPointerLeave={() => setHoveredProvinceId(null)}
                 onClick={handleMapClick}
                 dangerouslySetInnerHTML={{ __html: provinceSvg }} />
 
@@ -77,36 +112,51 @@ export function ProvinceMap(props: ProvinceMapProps) {
                     const player = playersById[playerId];
                     if (!point || !player)
                         return null;
-                    const style = markerStyle(point.x, point.y, player.clanId ? CLAN_COLORS[player.clanId] : '#8b7566');
-                    return <span key={`control-${provinceId}`} className={`control-marker ${hoveredPlayerId === playerId ? 'is-highlighted' : ''}`}
-                        style={style} title={`${player.name}: ${provinceId}`}>{player.clanId ? player.clanId.slice(0, 1).toUpperCase() : '?'}</span>;
+                    const color = player.clanId ? CLAN_COLORS[player.clanId] : '#8b7566';
+                    return <span key={`control-${provinceId}`}
+                        className={`control-marker ${hoveredPlayerId === playerId ? 'is-highlighted' : ''}`}
+                        style={markerStyle(point.x, point.y, color)}
+                        title={`${player.name}: ${PROVINCE_NAMES[provinceId]}`}>
+                        {player.clanId ? CLAN_MON[player.clanId] : '?'}
+                    </span>;
                 })}
 
                 {LAND_BORDERS.map(border => {
                     const occupied = game.orders.some(order => order.target.kind === 'land-border' && order.target.id === border.id);
-                    const eligible = !!landTargets && !occupied &&
-                        (selectedToken?.type === 'blank' || border.provinces.filter(id => game.provinces[id] === currentPlayerId).length === 1);
-                    return <TargetMarker key={border.id} kind="land-border" id={border.id} x={border.x} y={border.y}
-                        symbol="•" eligible={eligible && !disabled} onTarget={onTarget} />;
+                    const ownedSource = border.provinces.filter(id => game.provinces[id] === currentPlayerId);
+                    const attackedProvinceId = ownedSource.length === 1
+                        ? border.provinces.find(id => id !== ownedSource[0])!
+                        : null;
+                    const eligible = !!landTargets && !occupied && !!attackedProvinceId &&
+                        game.provinces[attackedProvinceId] !== currentPlayerId;
+                    const angle = attackedProvinceId
+                        ? angleToward(border, PROVINCE_CENTERS[attackedProvinceId])
+                        : 0;
+                    return <TargetMarker key={border.id} kind="land-border" id={border.id}
+                        provinceId={attackedProvinceId ?? undefined} point={border} angle={angle}
+                        eligible={eligible && !orderPlacementDisabled} onTarget={onTarget} />;
                 })}
 
                 {SEA_BORDERS.map(border => {
                     const occupied = game.orders.some(order => order.target.kind === 'sea-border' && order.target.id === border.id);
-                    return <TargetMarker key={border.id} kind="sea-border" id={border.id} x={border.x} y={border.y}
-                        symbol="≈" eligible={!!seaTargets && !occupied && !disabled} onTarget={onTarget} />;
+                    const angle = angleToward(border, PROVINCE_CENTERS[border.provinceId]);
+                    return <TargetMarker key={border.id} kind="sea-border" id={border.id}
+                        provinceId={border.provinceId} point={border} angle={angle}
+                        eligible={!!seaTargets && !occupied && !orderPlacementDisabled} onTarget={onTarget} />;
                 })}
 
                 {game.orders.map(order => {
-                    const point = orderPoint(order.target, game);
-                    if (!point)
+                    const placement = orderPlacement(order, game);
+                    if (!placement)
                         return null;
                     const player = playersById[order.playerId];
-                    const style = markerStyle(point.x, point.y, player?.clanId ? CLAN_COLORS[player.clanId] : '#8b7566');
+                    const color = player?.clanId ? CLAN_COLORS[player.clanId] : '#8b7566';
                     const canBless = orderTargets && order.playerId === currentPlayerId &&
                         ['army', 'fleet', 'shinobi'].includes(order.type);
                     return <button key={order.id}
-                        className={`placed-order ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-target' : ''}`}
-                        style={style} disabled={!canBless || disabled}
+                        className={`placed-order placed-order-${order.type} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-target' : ''}`}
+                        style={markerStyle(placement.x, placement.y, color, placement.angle)}
+                        disabled={!canBless || orderPlacementDisabled}
                         onClick={() => onTarget({ kind: 'order', id: order.id })}
                         title={order.type === 'hidden' ? 'Скрытый приказ' : tokenLabel(order.type)}>
                         <span>{tokenSymbol(order.type)}</span>
@@ -116,11 +166,14 @@ export function ProvinceMap(props: ProvinceMapProps) {
             </div>
         </div>
 
-        <div className={`province-label ${hoveredProvince ? 'visible' : ''}`}>
-            <span>Провинция</span><strong>{hoveredProvince ?? ''}</strong>
+        <div className={`province-label ${hoveredProvinceId ? 'visible' : ''}`}>
+            <span>Провинция</span><strong>{hoveredProvinceId ? PROVINCE_NAMES[hoveredProvinceId] : ''}</strong>
         </div>
         {selectedToken && <div className="target-legend">
             <b>{TOKEN_INFO[selectedToken.type].label}</b><span>{TOKEN_INFO[selectedToken.type].hint}</span>
+        </div>}
+        {controlPlacementActive && <div className="target-legend setup-legend">
+            <b>Жетон контроля</b><span>Выберите свободную провинцию</span>
         </div>}
     </div>;
 }
@@ -128,16 +181,19 @@ export function ProvinceMap(props: ProvinceMapProps) {
 function TargetMarker(props: {
     kind: 'land-border' | 'sea-border';
     id: string;
-    x: number;
-    y: number;
-    symbol: string;
+    provinceId?: string;
+    point: MapPoint;
+    angle: number;
     eligible: boolean;
     onTarget: (target: OrderTarget) => void;
 }) {
-    const { kind, id, x, y, symbol, eligible, onTarget } = props;
+    const { kind, id, provinceId, point, angle, eligible, onTarget } = props;
     return <button className={`border-target ${kind} ${eligible ? 'is-active' : ''}`}
-        style={markerStyle(x, y)} disabled={!eligible} onClick={() => onTarget({ kind, id })} aria-label="Выбрать границу">
-        {symbol}
+        style={markerStyle(point.x, point.y, undefined, angle)}
+        disabled={!eligible}
+        onClick={() => onTarget({ kind, id, provinceId })}
+        aria-label="Выбрать границу">
+        <span>+</span>
     </button>;
 }
 
@@ -158,23 +214,55 @@ function provinceIsEligible(token: BattleTokenView, provinceId: string, game: Ga
     return false;
 }
 
-function orderPoint(target: OrderTarget, game: GameViewState): { x: number; y: number } | null {
-    if (target.kind === 'province')
-        return PROVINCE_CENTERS[target.id] ?? null;
-    if (target.kind === 'land-border')
-        return LAND_BORDERS.find(border => border.id === target.id) ?? null;
-    if (target.kind === 'sea-border')
-        return SEA_BORDERS.find(border => border.id === target.id) ?? null;
-    const base = game.orders.find(order => order.id === target.id);
-    return base ? orderPoint(base.target, game) : null;
+function orderPlacement(order: PlacedOrderView, game: GameViewState): { x: number; y: number; angle: number } | null {
+    if (order.target.kind === 'order') {
+        const base = game.orders.find(item => item.id === order.target.id);
+        const placement = base ? orderPlacement(base, game) : null;
+        return placement ? { x: placement.x + 9, y: placement.y - 9, angle: placement.angle } : null;
+    }
+
+    if (order.target.kind === 'province') {
+        const center = PROVINCE_CENTERS[order.target.id];
+        if (!center)
+            return null;
+        const provinceOrders = game.orders.filter(item =>
+            item.target.kind === 'province' && item.target.id === order.target.id
+        );
+        const index = provinceOrders.findIndex(item => item.id === order.id);
+        const spread = (index - (provinceOrders.length - 1) / 2) * 34;
+        const orbitAngle = 90 + spread;
+        const radius = 34;
+        const point = {
+            x: center.x + Math.cos(orbitAngle * Math.PI / 180) * radius,
+            y: center.y + Math.sin(orbitAngle * Math.PI / 180) * radius
+        };
+        return { ...point, angle: angleToward(point, center) };
+    }
+
+    const border = order.target.kind === 'land-border'
+        ? LAND_BORDERS.find(item => item.id === order.target.id)
+        : SEA_BORDERS.find(item => item.id === order.target.id);
+    if (!border)
+        return null;
+
+    const provinceId = order.target.provinceId ??
+        (order.target.kind === 'sea-border' && 'provinceId' in border ? border.provinceId : undefined);
+    const targetCenter = provinceId ? PROVINCE_CENTERS[provinceId] : null;
+    return { x: border.x, y: border.y, angle: targetCenter ? angleToward(border, targetCenter) : 0 };
 }
 
-function markerStyle(x: number, y: number, color?: string): CSSProperties {
+function markerStyle(x: number, y: number, color?: string, angle = -90): CSSProperties {
     return {
         left: `${x / 1024 * 100}%`,
         top: `${y / 1536 * 100}%`,
-        '--marker-color': color
+        '--marker-color': color,
+        '--token-angle': `${angle}deg`,
+        '--token-counter-angle': `${-90 - angle}deg`
     } as CSSProperties;
+}
+
+function angleToward(from: MapPoint, to: MapPoint): number {
+    return Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI + 90;
 }
 
 function tokenSymbol(type: VisibleTokenType): string {

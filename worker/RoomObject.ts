@@ -31,6 +31,7 @@ interface StoredPlayerGame {
     hand: StoredBattleToken[];
     stock: StoredBattleToken[];
     discard: StoredBattleToken[];
+    setupRemaining: number;
 }
 
 interface StoredGame {
@@ -55,6 +56,8 @@ interface StoredRoom {
 }
 
 const ALL_CLANS: ClanId[] = ['crab', 'crane', 'dragon', 'lion', 'phoenix', 'scorpion', 'unicorn'];
+const TOKEN_TYPES: BattleTokenType[] = ['army', 'fleet', 'shinobi', 'blessing', 'diplomacy', 'raid', 'blank'];
+const SETUP_CONTROL_TOKENS: Record<number, number> = { 2: 11, 3: 7, 4: 5, 5: 4 };
 const CAPITALS: Record<ClanId, string> = {
     crab: 'province-11',
     crane: 'province-20',
@@ -105,6 +108,10 @@ export class RoomObject {
                 return this.advanceGame(request, room);
             if (request.method === 'POST' && url.pathname === '/game/orders')
                 return this.placeOrder(request, room);
+            if (request.method === 'POST' && url.pathname === '/game/control')
+                return this.placeControl(request, room);
+            if (request.method === 'POST' && url.pathname === '/game/bot-turn')
+                return this.playBotTurn(request, room);
 
             return json({ error: 'Маршрут не найден' }, 404);
         } catch (error) {
@@ -229,7 +236,8 @@ export class RoomObject {
             players: Object.fromEntries(room.players.map(player => [player.id, {
                 hand: [],
                 stock: this.createTokenPool(player.clanId!),
-                discard: []
+                discard: [],
+                setupRemaining: SETUP_CONTROL_TOKENS[room.players.length]
             }])),
             provinces: Object.fromEntries(PROVINCE_IDS.map(id => [id, null])),
             orders: []
@@ -237,6 +245,7 @@ export class RoomObject {
 
         for (const player of room.players)
             room.game.provinces[CAPITALS[player.clanId!]] = player.id;
+        room.game.turnPlayerId = room.game.firstPlayerId;
 
         await this.save(room);
         return json(this.toPublicState(room, host));
@@ -247,6 +256,8 @@ export class RoomObject {
         const game = this.requireGame(room);
 
         if (game.phase === 'setup') {
+            if (Object.values(game.players).some(player => player.setupRemaining > 0))
+                throw new Error('Сначала разместите все начальные жетоны контроля');
             this.beginRound(room, false);
         } else if (game.phase === 'resolution') {
             this.cleanUpResolvedOrders(game);
@@ -262,7 +273,6 @@ export class RoomObject {
             throw new Error('Сейчас нельзя перейти к следующей фазе');
         }
 
-        this.playBotTurns(room);
         await this.save(room);
         return json(this.toPublicState(room, host));
     }
@@ -280,9 +290,87 @@ export class RoomObject {
         const body = await request.json<{ tokenId: string; target: OrderTarget }>();
         this.commitOrder(room, player.id, body.tokenId, body.target);
         this.advancePlacementTurn(room, player.id);
-        this.playBotTurns(room);
         await this.save(room);
         return json(this.toPublicState(room, player));
+    }
+
+    private async placeControl(request: Request, room: StoredRoom): Promise<Response> {
+        const player = this.requirePlayer(request, room);
+        const game = this.requireGame(room);
+        if (game.phase !== 'setup')
+            throw new Error('Начальная расстановка уже завершена');
+        if (game.turnPlayerId !== player.id)
+            throw new Error('Сейчас ход другого игрока');
+        if (player.kind === 'bot')
+            throw new Error('Ход бота выполняется автоматически');
+
+        const body = await request.json<{ provinceId: string }>();
+        this.commitControl(room, player.id, body.provinceId);
+        await this.save(room);
+        return json(this.toPublicState(room, player));
+    }
+
+    private async playBotTurn(request: Request, room: StoredRoom): Promise<Response> {
+        const host = this.requireHost(request, room);
+        const game = this.requireGame(room);
+        const bot = room.players.find(player => player.id === game.turnPlayerId && player.kind === 'bot');
+        if (!bot)
+            throw new Error('Сейчас ход не бота');
+
+        if (game.phase === 'setup') {
+            const freeProvinces = PROVINCE_IDS.filter(id => game.provinces[id] === null);
+            if (freeProvinces.length === 0)
+                throw new Error('На карте не осталось свободных провинций');
+            this.commitControl(room, bot.id, randomItem(freeProvinces));
+        } else if (game.phase === 'placement') {
+            const playerGame = game.players[bot.id];
+            const options = playerGame.hand.flatMap(token =>
+                this.targetsForToken(game, bot.id, token).map(target => ({ token, target }))
+            );
+            if (options.length === 0)
+                throw new Error(`Бот ${bot.name} не нашёл допустимый ход`);
+
+            const choice = randomItem(options);
+            this.commitOrder(room, bot.id, choice.token.id, choice.target);
+            this.advancePlacementTurn(room, bot.id);
+        } else {
+            throw new Error('Бот сейчас не может сделать ход');
+        }
+
+        await this.save(room);
+        return json(this.toPublicState(room, host));
+    }
+
+    private commitControl(room: StoredRoom, playerId: string, provinceId: string): void {
+        const game = this.requireGame(room);
+        const playerGame = game.players[playerId];
+        if (playerGame.setupRemaining <= 0)
+            throw new Error('Все ваши начальные жетоны уже размещены');
+        if (!PROVINCE_IDS.includes(provinceId))
+            throw new Error('Провинция не найдена');
+        if (game.provinces[provinceId] !== null)
+            throw new Error('В этой провинции уже есть жетон контроля');
+
+        game.provinces[provinceId] = playerId;
+        playerGame.setupRemaining--;
+        this.advanceSetupTurn(room, playerId);
+    }
+
+    private advanceSetupTurn(room: StoredRoom, afterPlayerId: string): void {
+        const game = this.requireGame(room);
+        if (Object.values(game.players).every(player => player.setupRemaining === 0)) {
+            game.turnPlayerId = null;
+            return;
+        }
+
+        const currentIndex = room.players.findIndex(player => player.id === afterPlayerId);
+        for (let offset = 1; offset <= room.players.length; offset++) {
+            const candidate = room.players[(currentIndex + offset) % room.players.length];
+            if (game.players[candidate.id].setupRemaining > 0) {
+                game.turnPlayerId = candidate.id;
+                return;
+            }
+        }
     }
 
     private beginRound(room: StoredRoom, increment: boolean): void {
@@ -374,32 +462,15 @@ export class RoomObject {
         }
     }
 
-    private playBotTurns(room: StoredRoom): void {
-        const game = this.requireGame(room);
-        let safety = 0;
-        while (game.phase === 'placement' && safety++ < 64) {
-            const bot = room.players.find(player => player.id === game.turnPlayerId && player.kind === 'bot');
-            if (!bot)
-                return;
-
-            const playerGame = game.players[bot.id];
-            const options = playerGame.hand.flatMap(token =>
-                this.targetsForToken(game, bot.id, token).map(target => ({ token, target }))
-            );
-            if (options.length === 0)
-                throw new Error(`Бот ${bot.name} не нашёл допустимый ход`);
-
-            const choice = randomItem(options);
-            this.commitOrder(room, bot.id, choice.token.id, choice.target);
-            this.advancePlacementTurn(room, bot.id);
-        }
-    }
-
     private targetsForToken(game: StoredGame, playerId: string, token: StoredBattleToken): OrderTarget[] {
         const candidates: OrderTarget[] = [
             ...PROVINCE_IDS.map(id => ({ kind: 'province' as const, id })),
-            ...LAND_BORDERS.map(border => ({ kind: 'land-border' as const, id: border.id })),
-            ...SEA_BORDERS.map(border => ({ kind: 'sea-border' as const, id: border.id })),
+            ...LAND_BORDERS.flatMap(border => border.provinces.map(provinceId => ({
+                kind: 'land-border' as const, id: border.id, provinceId
+            }))),
+            ...SEA_BORDERS.map(border => ({
+                kind: 'sea-border' as const, id: border.id, provinceId: border.provinceId
+            })),
             ...game.orders.map(order => ({ kind: 'order' as const, id: order.id }))
         ];
         return candidates.filter(target => this.isTargetValid(game, playerId, token, target));
@@ -418,8 +489,10 @@ export class RoomObject {
             if (target.kind === 'province')
                 return PROVINCE_IDS.includes(target.id);
             if (target.kind === 'land-border')
-                return LAND_BORDERS.some(border => border.id === target.id);
-            return target.kind === 'sea-border' && SEA_BORDERS.some(border => border.id === target.id);
+                return this.isLandAttackTarget(game, playerId, target);
+            return target.kind === 'sea-border' && SEA_BORDERS.some(border =>
+                border.id === target.id && border.provinceId === target.provinceId
+            );
         }
 
         if (token.type === 'army') {
@@ -427,17 +500,15 @@ export class RoomObject {
                 return game.provinces[target.id] === playerId;
             if (target.kind !== 'land-border')
                 return false;
-            const border = LAND_BORDERS.find(item => item.id === target.id);
-            if (!border)
-                return false;
-            const owned = border.provinces.filter(id => game.provinces[id] === playerId).length;
-            return owned === 1;
+            return this.isLandAttackTarget(game, playerId, target);
         }
 
         if (token.type === 'fleet') {
             if (target.kind === 'province')
                 return game.provinces[target.id] === playerId && COASTAL_PROVINCES.has(target.id);
-            return target.kind === 'sea-border' && SEA_BORDERS.some(border => border.id === target.id);
+            return target.kind === 'sea-border' && SEA_BORDERS.some(border =>
+                border.id === target.id && border.provinceId === target.provinceId
+            );
         }
 
         if (token.type === 'shinobi')
@@ -465,11 +536,20 @@ export class RoomObject {
         return false;
     }
 
+    private isLandAttackTarget(game: StoredGame, playerId: string, target: OrderTarget): boolean {
+        const border = LAND_BORDERS.find(item => item.id === target.id);
+        if (!border || !target.provinceId || !border.provinces.includes(target.provinceId))
+            return false;
+
+        const sourceProvinceId = border.provinces.find(id => id !== target.provinceId)!;
+        return game.provinces[sourceProvinceId] === playerId && game.provinces[target.provinceId] !== playerId;
+    }
+
     private createTokenPool(clanId: ClanId): StoredBattleToken[] {
         const tokens: StoredBattleToken[] = [];
-        const add = (type: BattleTokenType, strengths: Array<number | null>) => {
+        const add = (type: BattleTokenType, strengths: Array<number | null>, isClanSpecial = false) => {
             for (const strength of strengths)
-                tokens.push({ id: crypto.randomUUID(), type, strength });
+                tokens.push({ id: crypto.randomUUID(), type, strength, isClanSpecial });
         };
 
         add('blank', [null]);
@@ -483,13 +563,13 @@ export class RoomObject {
         const clanSpecial: Record<ClanId, [BattleTokenType, number | null]> = {
             crab: ['fleet', 3],
             crane: ['diplomacy', null],
-            dragon: ['army', 3],
-            lion: ['army', 4],
+            dragon: ['blessing', 3],
+            lion: ['army', 6],
             phoenix: ['blessing', 3],
             scorpion: ['shinobi', 3],
-            unicorn: ['army', 3]
+            unicorn: ['raid', null]
         };
-        add(clanSpecial[clanId][0], [clanSpecial[clanId][1]]);
+        add(clanSpecial[clanId][0], [clanSpecial[clanId][1]], true);
         return tokens;
     }
 
@@ -561,14 +641,44 @@ export class RoomObject {
                         stockCount: playerGame.stock.length,
                         discardCount: playerGame.discard.length,
                         placedCount: game.orders.filter(order => order.playerId === player.id).length,
-                        provinceCount: Object.values(game.provinces).filter(owner => owner === player.id).length
+                        provinceCount: Object.values(game.provinces).filter(owner => owner === player.id).length,
+                        setupRemaining: playerGame.setupRemaining
                     };
                 }),
                 provinces: game.provinces,
                 orders: game.orders.map(order => this.toPublicOrder(order, game.phase, viewer?.id)),
-                hand: viewer ? game.players[viewer.id]?.hand ?? [] : []
+                hand: viewer ? game.players[viewer.id]?.hand ?? [] : [],
+                tokenPool: viewer ? this.toTokenPoolView(game, viewer.id) : []
             } : null
         };
+    }
+
+    private toTokenPoolView(game: StoredGame, playerId: string) {
+        const player = game.players[playerId];
+        if (!player)
+            return [];
+
+        const placed = game.orders.filter(order => order.playerId === playerId).map(order => order.token);
+        const allTokens = [...player.stock, ...player.hand, ...player.discard, ...placed];
+        return TOKEN_TYPES.flatMap(type => {
+            const strengths = [...new Set(allTokens.filter(token => token.type === type).map(token => token.strength))]
+                .sort((left, right) => (left ?? -1) - (right ?? -1));
+            return strengths.map(strength => {
+                const matches = (tokens: StoredBattleToken[]) =>
+                    tokens.filter(token => token.type === type && token.strength === strength).length;
+                const totalTokens = allTokens.filter(token => token.type === type && token.strength === strength);
+                return {
+                    type,
+                    strength,
+                    stock: matches(player.stock),
+                    hand: matches(player.hand),
+                    discard: matches(player.discard),
+                    placed: matches(placed),
+                    commonTotal: totalTokens.filter(token => !token.isClanSpecial).length,
+                    specialTotal: totalTokens.filter(token => token.isClanSpecial).length
+                };
+            });
+        });
     }
 
     private toPublicOrder(order: StoredPlacedOrder, phase: GamePhase, viewerId?: string): PlacedOrderView {

@@ -81,6 +81,10 @@ export default {
             return forward(request, stub, '/game/advance');
         if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'orders')
             return forward(request, stub, '/game/orders');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'control')
+            return forward(request, stub, '/game/control');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'bot-turn')
+            return forward(request, stub, '/game/bot-turn');
 
         return json({ error: 'Маршрут API не найден' }, 404);
     }
