@@ -89,8 +89,14 @@ export class RoomObject {
             if (!room)
                 return json({ error: 'Комната не найдена' }, 404);
 
-            if (request.method === 'GET' && url.pathname === '/state')
+            if (request.method === 'GET' && url.pathname === '/state') {
+                if (room.status === 'playing' && room.game?.turnPlayerId &&
+                    room.players.some(player => player.id === room.game?.turnPlayerId && player.kind === 'bot')) {
+                    this.playAutomaticBotTurns(room);
+                    await this.save(room);
+                }
                 return json(this.toPublicState(room, this.findPlayer(request, room)));
+            }
 
             if (request.method === 'POST' && url.pathname === '/join')
                 return this.joinRoom(request, room);
@@ -246,6 +252,7 @@ export class RoomObject {
         for (const player of room.players)
             room.game.provinces[CAPITALS[player.clanId!]] = player.id;
         room.game.turnPlayerId = room.game.firstPlayerId;
+        this.playAutomaticBotTurns(room);
 
         await this.save(room);
         return json(this.toPublicState(room, host));
@@ -273,6 +280,7 @@ export class RoomObject {
             throw new Error('Сейчас нельзя перейти к следующей фазе');
         }
 
+        this.playAutomaticBotTurns(room);
         await this.save(room);
         return json(this.toPublicState(room, host));
     }
@@ -290,6 +298,7 @@ export class RoomObject {
         const body = await request.json<{ tokenId: string; target: OrderTarget }>();
         this.commitOrder(room, player.id, body.tokenId, body.target);
         this.advancePlacementTurn(room, player.id);
+        this.playAutomaticBotTurns(room);
         await this.save(room);
         return json(this.toPublicState(room, player));
     }
@@ -306,6 +315,7 @@ export class RoomObject {
 
         const body = await request.json<{ provinceId: string }>();
         this.commitControl(room, player.id, body.provinceId);
+        this.playAutomaticBotTurns(room);
         await this.save(room);
         return json(this.toPublicState(room, player));
     }
@@ -317,6 +327,30 @@ export class RoomObject {
         if (!bot)
             throw new Error('Сейчас ход не бота');
 
+        this.playAutomaticBotTurns(room);
+        await this.save(room);
+        return json(this.toPublicState(room, host));
+    }
+
+    private playAutomaticBotTurns(room: StoredRoom): void {
+        const game = this.requireGame(room);
+        let turns = 0;
+
+        while (game.turnPlayerId && (game.phase === 'setup' || game.phase === 'placement')) {
+            const bot = room.players.find(player => player.id === game.turnPlayerId && player.kind === 'bot');
+            if (!bot)
+                return;
+
+            this.commitRandomBotTurn(room, bot);
+            turns++;
+            if (turns > 100)
+                throw new Error('Автоматические ходы ботов превысили безопасный предел');
+        }
+    }
+
+    private commitRandomBotTurn(room: StoredRoom, bot: StoredPlayer): void {
+        const game = this.requireGame(room);
+
         if (game.phase === 'setup') {
             const freeProvinces = PROVINCE_IDS.filter(id => game.provinces[id] === null);
             if (freeProvinces.length === 0)
@@ -327,8 +361,16 @@ export class RoomObject {
             const options = playerGame.hand.flatMap(token =>
                 this.targetsForToken(game, bot.id, token).map(target => ({ token, target }))
             );
-            if (options.length === 0)
-                throw new Error(`Бот ${bot.name} не нашёл допустимый ход`);
+            if (options.length === 0) {
+                const skippedToken = randomItem(playerGame.hand);
+                playerGame.hand = playerGame.hand.filter(token => token.id !== skippedToken.id);
+                if (skippedToken.type === 'blank')
+                    playerGame.stock.push(skippedToken);
+                else
+                    playerGame.discard.push(skippedToken);
+                this.advancePlacementTurn(room, bot.id);
+                return;
+            }
 
             const choice = randomItem(options);
             this.commitOrder(room, bot.id, choice.token.id, choice.target);
@@ -336,9 +378,6 @@ export class RoomObject {
         } else {
             throw new Error('Бот сейчас не может сделать ход');
         }
-
-        await this.save(room);
-        return json(this.toPublicState(room, host));
     }
 
     private commitControl(room: StoredRoom, playerId: string, provinceId: string): void {

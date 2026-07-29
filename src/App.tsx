@@ -183,8 +183,7 @@ function RoomPage({ code }: { code: string }) {
         return <GameBoard room={room} currentPlayerId={currentPlayer.id} busy={busy} error={error}
             onAdvance={() => run(() => roomApi.advanceGame(session))}
             onPlaceOrder={(tokenId, target) => run(() => roomApi.placeOrder(session, tokenId, target))}
-            onPlaceControl={provinceId => run(() => roomApi.placeControl(session, provinceId))}
-            onBotTurn={() => run(() => roomApi.playBotTurn(session))} />;
+            onPlaceControl={provinceId => run(() => roomApi.placeControl(session, provinceId))} />;
     }
 
     const inviteUrl = `${location.origin}/room/${code}`;

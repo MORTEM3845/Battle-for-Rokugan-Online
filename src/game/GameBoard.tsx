@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import {
     CLANS,
     type BattleTokenType,
@@ -20,7 +20,6 @@ interface GameBoardProps {
     onAdvance: () => Promise<void>;
     onPlaceOrder: (tokenId: string, target: OrderTarget) => Promise<void>;
     onPlaceControl: (provinceId: string) => Promise<void>;
-    onBotTurn: () => Promise<void>;
 }
 
 export const CLAN_COLORS: Record<ClanId, string> = {
@@ -61,11 +60,10 @@ const PHASE_LABELS = {
 };
 
 export function GameBoard(props: GameBoardProps) {
-    const { room, currentPlayerId, busy, error, onAdvance, onPlaceOrder, onPlaceControl, onBotTurn } = props;
+    const { room, currentPlayerId, busy, error, onAdvance, onPlaceOrder, onPlaceControl } = props;
     const game = room.game;
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
-    const handledBotTurn = useRef('');
 
     useEffect(() => {
         if (!game?.hand.some(token => token.id === selectedTokenId))
@@ -73,22 +71,6 @@ export function GameBoard(props: GameBoardProps) {
     }, [game?.hand, selectedTokenId]);
 
     const turnPlayer = room.players.find(player => player.id === game?.turnPlayerId);
-    const turnProgress = game?.phase === 'setup'
-        ? game.players.map(player => player.setupRemaining).join('-')
-        : game?.players.map(player => player.placedCount).join('-');
-    const botTurnKey = game && turnPlayer?.kind === 'bot'
-        ? `${game.phase}:${game.round}:${turnPlayer.id}:${turnProgress}`
-        : '';
-
-    useEffect(() => {
-        const currentPlayer = room.players.find(player => player.id === currentPlayerId);
-        if (!botTurnKey || !currentPlayer?.isHost || busy || handledBotTurn.current === botTurnKey)
-            return;
-
-        handledBotTurn.current = botTurnKey;
-        const timer = window.setTimeout(() => void onBotTurn(), 700);
-        return () => clearTimeout(timer);
-    }, [botTurnKey, busy, currentPlayerId, onBotTurn, room.players]);
 
     if (!game)
         return null;
