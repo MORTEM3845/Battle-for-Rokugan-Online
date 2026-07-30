@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AmbientPlayer } from './components/AmbientPlayer';
+import { LanguageProvider } from './i18n';
 import { roomCodeFromPath } from './lib/navigation';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
@@ -13,8 +13,5 @@ export default function App() {
         return () => removeEventListener('popstate', handler);
     }, []);
 
-    return <>
-        {roomCode ? <RoomPage code={roomCode} /> : <HomePage />}
-        <AmbientPlayer />
-    </>;
+    return <LanguageProvider>{roomCode ? <RoomPage code={roomCode} /> : <HomePage />}</LanguageProvider>;
 }
