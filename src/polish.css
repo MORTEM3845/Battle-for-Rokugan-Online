@@ -1,0 +1,209 @@
+.rokugan-home {
+    background:
+        radial-gradient(circle at 72% 40%, rgba(169, 50, 37, .18), transparent 30%),
+        radial-gradient(circle at top, #38251f 0, #171310 48%, #0e0c0b 100%);
+}
+.rokugan-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", Georgia, serif;
+    font-weight: 500;
+    letter-spacing: .015em;
+    text-shadow: 0 3px 0 #150b08, 0 8px 24px rgba(0, 0, 0, .55);
+}
+.rokugan-title > span {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 2px solid rgba(237, 139, 105, .68);
+    border-radius: 50%;
+    color: #f2d5b0;
+    background: radial-gradient(circle, #a5322b, #4b1514 72%);
+    box-shadow: 0 0 0 7px rgba(159, 46, 39, .12), 0 10px 25px rgba(0, 0, 0, .45);
+    font: 30px serif;
+}
+.home-language-toggle, .room-language-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 160;
+}
+.language-toggle {
+    min-width: 42px;
+    padding: 7px 9px;
+    border-color: rgba(215, 169, 103, .42);
+    color: #efd7ad;
+    background: rgba(30, 20, 15, .92);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .1em;
+}
+
+.room-tools {
+    position: fixed;
+    top: 22px;
+    right: 154px;
+    z-index: 125;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.room-tools .language-toggle { position: static; }
+.ambient-player.compact-audio {
+    position: static;
+    width: 136px;
+    height: 36px;
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    align-items: center;
+    overflow: visible;
+    border: 1px solid rgba(203, 160, 103, .34);
+    border-radius: 10px;
+    background: linear-gradient(145deg, rgba(34, 23, 17, .97), rgba(13, 9, 7, .97));
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .45);
+}
+.ambient-player.compact-audio.is-playing { border-color: rgba(233, 184, 105, .68); }
+.compact-audio .ambient-toggle {
+    width: 36px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-right: 1px solid rgba(213, 171, 111, .18);
+    border-radius: 9px 0 0 9px;
+    color: #f0c77e;
+    background: transparent;
+    font-size: 12px;
+}
+.compact-audio .ambient-toggle:hover:not(:disabled) { transform: none; background: rgba(255, 255, 255, .05); }
+.compact-audio .ambient-volume {
+    width: calc(100% - 14px);
+    height: 18px;
+    display: block;
+    margin: 0 7px;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    accent-color: #c47650;
+}
+.audio-file-input { display: none; }
+
+.detailed-clan-grid { grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); }
+.detailed-clan-card {
+    --clan-accent: #9a765d;
+    min-height: 210px;
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    grid-template-rows: auto 1fr auto;
+    align-items: start;
+    gap: 12px;
+    padding: 17px;
+    overflow: hidden;
+    text-align: left;
+    background:
+        radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--clan-accent) 23%, transparent), transparent 32%),
+        linear-gradient(145deg, rgba(47, 32, 24, .98), rgba(18, 12, 9, .98));
+    box-shadow: inset 4px 0 color-mix(in srgb, var(--clan-accent) 70%, transparent), 0 10px 24px rgba(0, 0, 0, .28);
+}
+.detailed-clan-card.clan-crab { --clan-accent: #d7d6cf; }
+.detailed-clan-card.clan-crane { --clan-accent: #74cce6; }
+.detailed-clan-card.clan-dragon { --clan-accent: #54a36b; }
+.detailed-clan-card.clan-lion { --clan-accent: #d9ae43; }
+.detailed-clan-card.clan-phoenix { --clan-accent: #e27939; }
+.detailed-clan-card.clan-scorpion { --clan-accent: #c54843; }
+.detailed-clan-card.clan-unicorn { --clan-accent: #966dcc; }
+.detailed-clan-card:hover:not(:disabled) { border-color: color-mix(in srgb, var(--clan-accent) 72%, #cfa578); }
+.detailed-clan-card.selected { outline: 2px solid color-mix(in srgb, var(--clan-accent) 78%, white); }
+.clan-card-mon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    border: 2px solid color-mix(in srgb, var(--clan-accent) 72%, white);
+    border-radius: 50%;
+    color: #fff3dd;
+    background: color-mix(in srgb, var(--clan-accent) 42%, #17100d);
+    box-shadow: 0 7px 18px rgba(0, 0, 0, .46);
+    font: 25px serif;
+}
+.clan-card-heading { min-width: 0; display: grid; gap: 5px; }
+.clan-card-heading strong { color: #f1e3ce; font: 24px Georgia, serif; }
+.clan-card-heading em { overflow: hidden; color: var(--clan-accent); font-size: 10px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.clan-card-rule { grid-column: 1 / -1; display: grid; align-content: start; gap: 7px; padding: 11px; border: 1px solid color-mix(in srgb, var(--clan-accent) 22%, transparent); border-radius: 9px; background: rgba(255, 255, 255, .025); }
+.clan-card-rule b { color: color-mix(in srgb, var(--clan-accent) 80%, white); font: 15px Georgia, serif; }
+.clan-card-rule small { color: #bbaea2; font-size: 11px; line-height: 1.45; }
+.clan-card-token { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 3px; }
+.clan-card-token i { color: #7f7065; font-size: 8px; font-style: normal; letter-spacing: .12em; text-transform: uppercase; }
+.clan-card-token b { color: #e9c985; font-size: 11px; }
+
+.feedback-dialog header { align-items: flex-start; }
+.dialog-close {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    padding: 0 0 3px;
+    line-height: 1;
+}
+.feedback-status { margin: 0; color: #efc37d; font-size: 11px; }
+
+.prominent-turn-banner { pointer-events: none; }
+.turn-banner-close {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    padding: 0 0 2px;
+    border-color: rgba(226, 188, 132, .22);
+    border-radius: 50%;
+    color: #d8b98d;
+    background: rgba(15, 10, 8, .36);
+    font-size: 20px;
+    line-height: 1;
+    pointer-events: auto;
+}
+.turn-banner-close:hover:not(:disabled) { transform: none; color: #fff0cd; background: rgba(80, 42, 25, .72); }
+
+.rotated-map::after {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    content: "";
+    background: url('/assets/rokugan-honor-stars.svg') center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+.province-map:has(.target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)) .border-target:not(.is-active) {
+    opacity: .24;
+    border-style: solid;
+    border-color: rgba(112, 59, 38, .74);
+    color: #f0c6a2;
+    background: rgba(73, 33, 23, .84);
+}
+.province-map:has(.target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)) .border-target:not(.is-active) span { font-size: 0; }
+.province-map:has(.target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)) .border-target:not(.is-active) span::after { content: "×"; font-size: 16px; }
+.target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)::after {
+    display: block;
+    margin-top: 4px;
+    content: "× означает недоступную или уже занятую границу. На одной границе может лежать только один боевой жетон.";
+    color: #9f7b68;
+    font-size: 8px;
+    line-height: 1.35;
+}
+
+@media (max-width: 1000px) {
+    .room-tools { top: 76px; right: 12px; }
+    .detailed-clan-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+@media (max-width: 620px) {
+    .rokugan-title { gap: 10px; }
+    .rokugan-title > span { width: 43px; height: 43px; font-size: 22px; }
+    .room-tools { top: 10px; right: 62px; }
+    .ambient-player.compact-audio { width: 112px; }
+    .detailed-clan-grid { grid-template-columns: 1fr; }
+    .prominent-turn-banner { grid-template-columns: auto 1fr 30px; }
+}
