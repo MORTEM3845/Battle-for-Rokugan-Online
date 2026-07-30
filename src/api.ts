@@ -1,3 +1,4 @@
+import type { ChatState } from '../shared/chat';
 import type { ClanId, GamePhase, OrderTarget, PlayerSession, RoomSessionResponse, RoomState } from '../shared/room';
 import type { SecretObjectiveId } from '../shared/objectives';
 
@@ -29,6 +30,14 @@ export const roomApi = {
 
     get: (code: string, session?: PlayerSession | null) => request<RoomState>(
         `/api/rooms/${code}`, undefined, session?.playerToken
+    ),
+
+    getChat: (code: string) => request<ChatState>(`/api/rooms/${code}/chat`),
+
+    sendChat: (session: PlayerSession, playerName: string, text: string) => request<ChatState>(
+        `/api/rooms/${session.roomCode}/chat`,
+        { method: 'POST', body: JSON.stringify({ playerId: session.playerId, playerName, text }) },
+        session.playerToken
     ),
 
     selectClan: (session: PlayerSession, clanId: ClanId) => request<RoomState>(
