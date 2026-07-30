@@ -16,6 +16,7 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
     const [error, setError] = useState('');
     const [sending, setSending] = useState(false);
     const [unread, setUnread] = useState(0);
+    const initialized = useRef(false);
     const previousCount = useRef(0);
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -30,8 +31,9 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
                     return;
                 setMessages(state.messages);
                 setError('');
-                if (!open && state.messages.length > previousCount.current)
+                if (initialized.current && !open && state.messages.length > previousCount.current)
                     setUnread(value => value + state.messages.length - previousCount.current);
+                initialized.current = true;
                 previousCount.current = state.messages.length;
             } catch (e) {
                 if (active)
@@ -53,7 +55,10 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
         if (!open)
             return;
         setUnread(0);
-        requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }));
+        requestAnimationFrame(() => {
+            const list = listRef.current;
+            list?.scrollTo({ top: list.scrollHeight });
+        });
     }, [messages, open]);
 
     async function send(event: FormEvent) {
