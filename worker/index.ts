@@ -9,6 +9,17 @@ interface Env {
     ASSETS: Fetcher;
 }
 
+interface RoomSessionPayload {
+    room: {
+        code: string;
+        players: Array<{ id: string; name: string }>;
+    };
+    session: {
+        playerId: string;
+        playerToken: string;
+    };
+}
+
 const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
@@ -41,6 +52,34 @@ async function forward(request: Request, stub: DurableObjectStub, path: string):
     return stub.fetch(new Request(`https://room${path}`, request));
 }
 
+async function registerChatSession(env: Env, response: Response): Promise<Response> {
+    if (!response.ok)
+        return response;
+
+    try {
+        const payload = await response.clone().json<RoomSessionPayload>();
+        const player = payload.room.players.find(candidate => candidate.id === payload.session.playerId);
+        if (!player)
+            return response;
+
+        const registration = await getChatStub(env, payload.room.code).fetch('https://chat/register', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                playerId: payload.session.playerId,
+                playerName: player.name,
+                playerToken: payload.session.playerToken
+            })
+        });
+        if (!registration.ok)
+            console.error('Chat session registration failed', registration.status, await registration.text());
+    } catch (error) {
+        console.error('Chat session registration failed', error);
+    }
+
+    return response;
+}
+
 async function handleRequest(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
@@ -59,7 +98,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
                 body: JSON.stringify({ code, playerName: body.playerName })
             });
             if (response.status !== 409)
-                return response;
+                return registerChatSession(env, response);
         }
 
         return json({ error: 'Не удалось создать уникальный код комнаты' }, 500);
@@ -77,9 +116,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     const roomStub = getRoomStub(env, code);
     if (parts[3] === 'chat' && (request.method === 'GET' || request.method === 'POST')) {
-        const roomResponse = await roomStub.fetch(new Request('https://room/state', {
-            headers: request.headers
-        }));
+        const roomResponse = await roomStub.fetch(new Request('https://room/state', { headers: request.headers }));
         if (!roomResponse.ok)
             return roomResponse;
         return forward(request, getChatStub(env, code), '/messages');
@@ -88,7 +125,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     if (request.method === 'GET' && parts.length === 3)
         return forward(request, roomStub, '/state');
     if (request.method === 'POST' && parts[3] === 'join')
-        return forward(request, roomStub, '/join');
+        return registerChatSession(env, await forward(request, roomStub, '/join'));
     if (request.method === 'POST' && parts[3] === 'clan')
         return forward(request, roomStub, '/clan');
     if (request.method === 'POST' && parts[3] === 'ready')
