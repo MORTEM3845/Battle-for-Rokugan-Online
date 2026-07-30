@@ -5,7 +5,7 @@ import {
     PROVINCE_NAMES,
     SEA_BORDERS
 } from '../shared/map';
-import type { BattleTokenType, ClanId, GameLogEntry, OrderTarget, ProvinceSpecial, RoomPlayer } from '../shared/room';
+import type { BattleTokenType, GameLogEntry, OrderTarget, ProvinceSpecial, RoomPlayer } from '../shared/room';
 import { RoomObject as BaseRoomObject } from './RoomObject';
 
 interface Env {
@@ -100,12 +100,12 @@ export class RoomObject extends BaseRoomObject {
 
         try {
             if (request.method === 'DELETE' && url.pathname.startsWith('/players/'))
-                return await this.kickPlayer(request, decodeURIComponent(url.pathname.slice('/players/'.length)));
+                return await this.handleKickPlayer(request, decodeURIComponent(url.pathname.slice('/players/'.length)));
             if (request.method === 'POST' && url.pathname === '/game/clan/unicorn-swap')
-                return await this.swapUnicornOrders(request);
+                return await this.handleUnicornSwap(request);
 
-            if (await this.willResolveRound(request, url.pathname))
-                await this.discardIllegalUnicornOrders();
+            if (await this.patchWillResolveRound(request, url.pathname))
+                await this.patchDiscardIllegalUnicornOrders();
 
             return await super.fetch(request);
         } catch (error) {
@@ -118,12 +118,12 @@ export class RoomObject extends BaseRoomObject {
         }
     }
 
-    private async kickPlayer(request: Request, playerId: string): Promise<Response> {
-        const room = await this.requireRoom();
+    private async handleKickPlayer(request: Request, playerId: string): Promise<Response> {
+        const room = await this.patchRequireRoom();
         if (room.status !== 'lobby')
             throw new PatchError(400, 'Игроков можно исключать только до начала партии');
 
-        const host = this.requireHost(request, room);
+        const host = this.patchRequireHost(request, room);
         const target = room.players.find(player => player.id === playerId);
         if (!target)
             throw new PatchError(404, 'Игрок не найден');
@@ -135,9 +135,9 @@ export class RoomObject extends BaseRoomObject {
         return super.fetch(new Request('https://room/state', { headers: request.headers }));
     }
 
-    private async swapUnicornOrders(request: Request): Promise<Response> {
-        const room = await this.requireRoom();
-        const player = this.requirePlayer(request, room);
+    private async handleUnicornSwap(request: Request): Promise<Response> {
+        const room = await this.patchRequireRoom();
+        const player = this.patchRequirePlayer(request, room);
         const game = room.game;
         const playerGame = game?.players[player.id];
         if (!game || game.phase !== 'reveal' || player.clanId !== 'unicorn' || !playerGame || playerGame.clanAbilityUsed)
@@ -148,7 +148,7 @@ export class RoomObject extends BaseRoomObject {
         game.readyPlayerIds = game.readyPlayerIds.filter(id => id !== player.id);
         if (orderIds.length === 0) {
             playerGame.clanAbilityUsed = true;
-            this.addLog(game, `🦄 ${player.name} оставляет свои приказы на местах.`, player.id);
+            this.patchAddLog(game, `🦄 ${player.name} оставляет свои приказы на местах.`, player.id);
         } else {
             if (orderIds.length !== 2 || orderIds[0] === orderIds[1])
                 throw new PatchError(400, 'Выберите ровно два разных жетона');
@@ -156,16 +156,16 @@ export class RoomObject extends BaseRoomObject {
             if (orders.some(order => !order || order.playerId !== player.id || order.target.kind === 'order'))
                 throw new PatchError(400, 'Можно менять местами только два своих основных жетона');
             const [first, second] = orders as [StoredPlacedOrder, StoredPlacedOrder];
-            if (this.hasBlessing(game, first.id) || this.hasBlessing(game, second.id))
+            if (this.patchHasBlessing(game, first.id) || this.patchHasBlessing(game, second.id))
                 throw new PatchError(400, 'Жетон под благословением нельзя перемещать способностью клана');
 
-            const firstPlace = this.targetName(first.target);
-            const secondPlace = this.targetName(second.target);
+            const firstPlace = this.patchTargetName(first.target);
+            const secondPlace = this.patchTargetName(second.target);
             [first.target, second.target] = [second.target, first.target];
             first.movedByUnicorn = true;
             second.movedByUnicorn = true;
             playerGame.clanAbilityUsed = true;
-            this.addLog(
+            this.patchAddLog(
                 game,
                 `🦄 ${player.name} меняет местами два приказа: «${firstPlace}» ↔ «${secondPlace}». ` +
                 'Они остаются на поле; законность новых позиций проверится при исполнении.',
@@ -177,7 +177,7 @@ export class RoomObject extends BaseRoomObject {
         return super.fetch(new Request('https://room/state', { headers: request.headers }));
     }
 
-    private async willResolveRound(request: Request, path: string): Promise<boolean> {
+    private async patchWillResolveRound(request: Request, path: string): Promise<boolean> {
         const room = await this.patchedState.storage.get<StoredRoom>('room');
         const game = room?.game;
         if (!room || !game || game.phase !== 'reveal')
@@ -190,7 +190,7 @@ export class RoomObject extends BaseRoomObject {
         if (request.method !== 'POST' || path !== '/game/ready')
             return false;
 
-        const player = this.findPlayer(request, room);
+        const player = this.patchFindPlayer(request, room);
         const body = await request.clone().json<{ isReady?: boolean }>();
         if (!player || body.isReady !== true)
             return false;
@@ -199,7 +199,7 @@ export class RoomObject extends BaseRoomObject {
         return room.players.every(candidate => ready.has(candidate.id));
     }
 
-    private async discardIllegalUnicornOrders(): Promise<void> {
+    private async patchDiscardIllegalUnicornOrders(): Promise<void> {
         const room = await this.patchedState.storage.get<StoredRoom>('room');
         const game = room?.game;
         if (!room || !game)
@@ -212,7 +212,7 @@ export class RoomObject extends BaseRoomObject {
         const validationGame: StoredGame = { ...game, orders: game.orders.filter(order => !order.movedByUnicorn) };
         const illegal: Array<{ order: StoredPlacedOrder; reason: string }> = [];
         for (const order of moved) {
-            const reason = this.invalidTargetReason(validationGame, order);
+            const reason = this.patchInvalidTargetReason(validationGame, order);
             if (reason)
                 illegal.push({ order, reason });
             else
@@ -238,10 +238,10 @@ export class RoomObject extends BaseRoomObject {
                 playerGame.hand.push(order.token);
             else
                 playerGame.discard.push(order.token);
-            this.addLog(
+            this.patchAddLog(
                 game,
-                `🦄 ${this.playerName(room, order.playerId)}: ${this.tokenName(order.token)} в позиции ` +
-                `«${this.targetName(order.target)}» сброшен при исполнении — ${reason}.`,
+                `🦄 ${this.patchPlayerName(room, order.playerId)}: ${this.patchTokenName(order.token)} в позиции ` +
+                `«${this.patchTargetName(order.target)}» сброшен при исполнении — ${reason}.`,
                 order.playerId
             );
         }
@@ -251,7 +251,7 @@ export class RoomObject extends BaseRoomObject {
         await this.patchedState.storage.put('room', room);
     }
 
-    private invalidTargetReason(game: StoredGame, order: StoredPlacedOrder): string | null {
+    private patchInvalidTargetReason(game: StoredGame, order: StoredPlacedOrder): string | null {
         const { playerId, token, target } = order;
         if (target.kind === 'province' && game.provinceSpecials[target.id])
             return 'провинция недоступна из-за мира или выжженной земли';
@@ -296,45 +296,45 @@ export class RoomObject extends BaseRoomObject {
         return 'этот жетон нельзя размещать в центре провинции';
     }
 
-    private requireHost(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.requirePlayer(request, room);
+    private patchRequireHost(request: Request, room: StoredRoom): StoredPlayer {
+        const player = this.patchRequirePlayer(request, room);
         if (!player.isHost)
             throw new PatchError(403, 'Это действие доступно только хозяину комнаты');
         return player;
     }
 
-    private requirePlayer(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.findPlayer(request, room);
+    private patchRequirePlayer(request: Request, room: StoredRoom): StoredPlayer {
+        const player = this.patchFindPlayer(request, room);
         if (!player)
             throw new PatchError(401, 'Сессия игрока не найдена');
         return player;
     }
 
-    private findPlayer(request: Request, room: StoredRoom): StoredPlayer | undefined {
+    private patchFindPlayer(request: Request, room: StoredRoom): StoredPlayer | undefined {
         const token = request.headers.get('x-player-token');
         return room.players.find(player => player.token === token);
     }
 
-    private async requireRoom(): Promise<StoredRoom> {
+    private async patchRequireRoom(): Promise<StoredRoom> {
         const room = await this.patchedState.storage.get<StoredRoom>('room');
         if (!room)
             throw new PatchError(404, 'Комната не найдена');
         return room;
     }
 
-    private hasBlessing(game: StoredGame, orderId: string): boolean {
+    private patchHasBlessing(game: StoredGame, orderId: string): boolean {
         return game.orders.some(order => order.token.type === 'blessing' && order.target.kind === 'order' && order.target.id === orderId);
     }
 
-    private addLog(game: StoredGame, message: string, playerId?: string): void {
+    private patchAddLog(game: StoredGame, message: string, playerId?: string): void {
         game.log.push({ id: crypto.randomUUID(), round: game.round, type: 'card', message, playerId });
     }
 
-    private playerName(room: StoredRoom, playerId: string): string {
+    private patchPlayerName(room: StoredRoom, playerId: string): string {
         return room.players.find(player => player.id === playerId)?.name ?? 'неизвестный игрок';
     }
 
-    private tokenName(token: StoredBattleToken): string {
+    private patchTokenName(token: StoredBattleToken): string {
         const names: Record<BattleTokenType, string> = {
             army: 'армия', fleet: 'флот', shinobi: 'синоби', blessing: 'благословение',
             diplomacy: 'дипломатия', raid: 'погром', blank: 'пустой жетон'
@@ -342,7 +342,7 @@ export class RoomObject extends BaseRoomObject {
         return token.strength === null ? names[token.type] : `${names[token.type]} ${token.strength}`;
     }
 
-    private targetName(target: OrderTarget): string {
+    private patchTargetName(target: OrderTarget): string {
         if (target.kind === 'province')
             return PROVINCE_NAMES[target.id] ?? target.id;
         if (target.kind === 'sea-border')
