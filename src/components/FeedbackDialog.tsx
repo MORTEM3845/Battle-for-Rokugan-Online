@@ -51,9 +51,12 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
             `&to=${encodeURIComponent(AUTHOR_EMAIL)}` +
             `&su=${encodeURIComponent(SUBJECT)}` +
             `&body=${encodeURIComponent(buildBody())}`;
-        const tab = window.open(url, '_blank', 'noopener,noreferrer');
-        if (tab)
+        const tab = window.open(url, '_blank');
+        if (tab) {
+            tab.opener = null;
+            setStatus('');
             return;
+        }
         await copyMessage(false);
         setStatus(t('feedback.popupBlocked'));
     }
