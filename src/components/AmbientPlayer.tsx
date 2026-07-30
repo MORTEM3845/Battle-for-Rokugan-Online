@@ -1,102 +1,80 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLanguage } from '../i18n';
 
-interface AudioEngine {
-    context: AudioContext;
-    master: GainNode;
-    wind: AudioBufferSourceNode;
-    timer: number;
-}
+const DEFAULT_TRACK = '/audio/rokugan-ambient.mp3';
 
-const SCALE = [220, 246.94, 261.63, 329.63, 349.23, 440];
-
-function createWind(context: AudioContext, master: GainNode): AudioBufferSourceNode {
-    const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let index = 0; index < data.length; index++)
-        data[index] = Math.random() * 2 - 1;
-
-    const source = context.createBufferSource();
-    const filter = context.createBiquadFilter();
-    const gain = context.createGain();
-    source.buffer = buffer;
-    source.loop = true;
-    filter.type = 'lowpass';
-    filter.frequency.value = 520;
-    gain.gain.value = .035;
-    source.connect(filter).connect(gain).connect(master);
-    source.start();
-    return source;
-}
-
-function playNote(engine: AudioEngine): void {
-    const { context, master } = engine;
-    const now = context.currentTime;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const frequency = SCALE[Math.floor(Math.random() * SCALE.length)] * (Math.random() > .78 ? 2 : 1);
-
-    oscillator.type = Math.random() > .45 ? 'sine' : 'triangle';
-    oscillator.frequency.setValueAtTime(frequency, now);
-    gain.gain.setValueAtTime(.0001, now);
-    gain.gain.exponentialRampToValueAtTime(.12, now + .08);
-    gain.gain.exponentialRampToValueAtTime(.0001, now + 2.8);
-    oscillator.connect(gain).connect(master);
-    oscillator.start(now);
-    oscillator.stop(now + 3);
-}
-
-export function AmbientPlayer() {
+export function AmbientPlayer({ className = '' }: { className?: string }) {
+    const { t } = useLanguage();
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const objectUrlRef = useRef<string | null>(null);
     const [playing, setPlaying] = useState(false);
-    const [volume, setVolume] = useState(() => Number(localStorage.getItem('rokugan-audio-volume') ?? .32));
-    const engineRef = useRef<AudioEngine | null>(null);
+    const [missing, setMissing] = useState(false);
+    const [volume, setVolume] = useState(() => Number(localStorage.getItem('rokugan-audio-volume') ?? .28));
 
     useEffect(() => {
-        if (engineRef.current)
-            engineRef.current.master.gain.value = volume;
+        const audio = audioRef.current;
+        if (audio)
+            audio.volume = volume;
         localStorage.setItem('rokugan-audio-volume', String(volume));
     }, [volume]);
 
-    useEffect(() => () => stopEngine(), []);
-
-    async function startEngine() {
-        const context = new AudioContext();
-        await context.resume();
-        const master = context.createGain();
-        master.gain.value = volume;
-        master.connect(context.destination);
-        const engine: AudioEngine = { context, master, wind: createWind(context, master), timer: 0 };
-        engine.timer = window.setInterval(() => playNote(engine), 3600);
-        engineRef.current = engine;
-        playNote(engine);
-        setPlaying(true);
-    }
-
-    function stopEngine() {
-        const engine = engineRef.current;
-        if (!engine)
-            return;
-        window.clearInterval(engine.timer);
-        engine.wind.stop();
-        void engine.context.close();
-        engineRef.current = null;
-        setPlaying(false);
-    }
+    useEffect(() => () => {
+        if (objectUrlRef.current)
+            URL.revokeObjectURL(objectUrlRef.current);
+    }, []);
 
     async function toggle() {
-        if (playing)
-            stopEngine();
-        else
-            await startEngine();
+        const audio = audioRef.current;
+        if (!audio)
+            return;
+        if (missing) {
+            fileRef.current?.click();
+            return;
+        }
+        if (!audio.paused) {
+            audio.pause();
+            setPlaying(false);
+            return;
+        }
+        try {
+            await audio.play();
+            setPlaying(true);
+        } catch {
+            setMissing(true);
+            fileRef.current?.click();
+        }
     }
 
-    return <aside className={`ambient-player ${playing ? 'is-playing' : ''}`} aria-label="Фоновая музыка">
-        <button className="ambient-toggle" onClick={() => void toggle()} aria-pressed={playing}>
-            <span>{playing ? 'Ⅱ' : '▶'}</span>
-            <div><b>Атмосфера Рокугана</b><small>{playing ? 'процедурная музыка играет' : 'включить музыку'}</small></div>
+    async function chooseFile(file?: File) {
+        if (!file || !audioRef.current)
+            return;
+        if (objectUrlRef.current)
+            URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = URL.createObjectURL(file);
+        audioRef.current.src = objectUrlRef.current;
+        audioRef.current.load();
+        setMissing(false);
+        try {
+            await audioRef.current.play();
+            setPlaying(true);
+        } catch {
+            setPlaying(false);
+        }
+    }
+
+    return <aside className={`ambient-player compact-audio ${playing ? 'is-playing' : ''} ${className}`.trim()}
+        aria-label={playing ? t('music.pause') : t('music.play')}>
+        <audio ref={audioRef} src={DEFAULT_TRACK} loop preload="none" onPause={() => setPlaying(false)}
+            onPlay={() => setPlaying(true)} onError={() => setMissing(true)} />
+        <input ref={fileRef} className="audio-file-input" type="file" accept="audio/*"
+            onChange={event => void chooseFile(event.target.files?.[0])} />
+        <button className="ambient-toggle" onClick={() => void toggle()} aria-pressed={playing}
+            title={missing ? t('music.missing') : playing ? t('music.pause') : t('music.play')}>
+            {missing ? '♫+' : playing ? 'Ⅱ' : '▶'}
         </button>
-        {playing && <label className="ambient-volume">Громкость
-            <input type="range" min="0" max="0.7" step="0.01" value={volume}
-                onChange={event => setVolume(Number(event.target.value))} />
-        </label>}
+        <input className="ambient-volume" aria-label={t('music.volume')} title={t('music.volume')}
+            type="range" min="0" max="1" step="0.01" value={volume}
+            onChange={event => setVolume(Number(event.target.value))} />
     </aside>;
 }

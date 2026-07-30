@@ -1,5 +1,5 @@
 import { ChatObject } from './ChatObject';
-import { RoomObject } from './RoomObject';
+import { RoomObject } from './RoomObjectPatched';
 
 export { ChatObject, RoomObject };
 
@@ -134,6 +134,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return forward(request, roomStub, '/bots');
     if (request.method === 'DELETE' && parts[3] === 'bots' && parts[4])
         return forward(request, roomStub, `/bots/${encodeURIComponent(parts[4])}`);
+    if (request.method === 'DELETE' && parts[3] === 'players' && parts[4])
+        return forward(request, roomStub, `/players/${encodeURIComponent(parts[4])}`);
     if (request.method === 'POST' && parts[3] === 'start')
         return forward(request, roomStub, '/start');
     if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'advance')
