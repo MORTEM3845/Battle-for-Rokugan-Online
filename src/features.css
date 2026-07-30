@@ -199,7 +199,7 @@
     .join-row button { width: 100%; }
     .home-links { align-items: flex-start; flex-direction: column; gap: 3px; }
     .ambient-player { right: 76px; bottom: 10px; left: 10px; width: auto; }
-    .ambient-player.is-playing { right: 10px; }
+    .ambient-player.is-playing { right: 76px; }
     .ambient-volume { display: none; }
     .room-chat { right: 10px; bottom: 10px; }
     .chat-fab { min-width: 58px; padding-inline: 11px; }
