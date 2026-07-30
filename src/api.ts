@@ -60,6 +60,10 @@ export const roomApi = {
         `/api/rooms/${session.roomCode}/bots/${botId}`, { method: 'DELETE' }, session.playerToken
     ),
 
+    kickPlayer: (session: PlayerSession, playerId: string) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/players/${playerId}`, { method: 'DELETE' }, session.playerToken
+    ),
+
     start: (session: PlayerSession) => request<RoomState>(
         `/api/rooms/${session.roomCode}/start`, { method: 'POST' }, session.playerToken
     ),
