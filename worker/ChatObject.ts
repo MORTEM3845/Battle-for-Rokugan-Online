@@ -5,6 +5,12 @@ interface ChatIdentity {
     playerName: string;
 }
 
+interface RegisterIdentityBody {
+    playerId: string;
+    playerName: string;
+    playerToken: string;
+}
+
 interface SendMessageBody {
     playerId: string;
     playerName: string;
@@ -47,6 +53,8 @@ export class ChatObject {
         const url = new URL(request.url);
 
         try {
+            if (request.method === 'POST' && url.pathname === '/register')
+                return this.registerIdentity(request);
             if (request.method === 'GET' && url.pathname === '/messages')
                 return json(await this.getState());
             if (request.method === 'POST' && url.pathname === '/messages')
@@ -64,6 +72,19 @@ export class ChatObject {
         }
     }
 
+    private async registerIdentity(request: Request): Promise<Response> {
+        const body = await request.json<RegisterIdentityBody>();
+        const playerId = body.playerId?.trim().slice(0, 80);
+        const playerName = body.playerName?.trim().slice(0, 24);
+        if (!playerId || !playerName || !body.playerToken)
+            throw new ChatError(400, 'Некорректная сессия чата');
+
+        const identities = await this.state.storage.get<Record<string, ChatIdentity>>('identities') ?? {};
+        identities[playerId] = { tokenHash: await this.hash(body.playerToken), playerName };
+        await this.state.storage.put('identities', identities);
+        return json({ status: 'registered' }, 201);
+    }
+
     private async sendMessage(request: Request): Promise<Response> {
         const playerToken = request.headers.get('x-player-token');
         if (!playerToken)
@@ -78,13 +99,13 @@ export class ChatObject {
         if (!text)
             throw new ChatError(400, 'Введите сообщение');
 
-        const tokenHash = await this.hash(playerToken);
         const identities = await this.state.storage.get<Record<string, ChatIdentity>>('identities') ?? {};
         const identity = identities[playerId];
-        if (identity && identity.tokenHash !== tokenHash)
-            throw new ChatError(401, 'Сессия чата не совпадает с игроком');
+        if (!identity || identity.tokenHash !== await this.hash(playerToken))
+            throw new ChatError(401, 'Сессия чата не зарегистрирована');
+        if (identity.playerName !== playerName)
+            throw new ChatError(400, 'Имя игрока не совпадает с сессией');
 
-        identities[playerId] = { tokenHash, playerName };
         const state = await this.getState();
         const previous = [...state.messages].reverse().find(message => message.playerId === playerId);
         if (previous && Date.now() - Date.parse(previous.createdAt) < MESSAGE_COOLDOWN_MS)
@@ -93,16 +114,13 @@ export class ChatObject {
         state.messages.push({
             id: crypto.randomUUID(),
             playerId,
-            playerName,
+            playerName: identity.playerName,
             text,
             createdAt: new Date().toISOString()
         });
         state.messages = state.messages.slice(-MAX_MESSAGES);
 
-        await Promise.all([
-            this.state.storage.put('messages', state.messages),
-            this.state.storage.put('identities', identities)
-        ]);
+        await this.state.storage.put('messages', state.messages);
         return json(state, 201);
     }
 
