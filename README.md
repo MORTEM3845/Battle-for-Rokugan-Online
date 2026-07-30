@@ -2,7 +2,7 @@
 
 Браузерная версия настольной игры «Битва за Рокуган». Клиент написан на React и Vite, API работает в Cloudflare Worker, а состояние каждой комнаты хранится в отдельном Cloudflare Durable Object.
 
-https://battle-for-rokugan-online.a-vinogradov3845.workers.dev/
+https://battle-for-rokugan-online.friendlygames.workers.dev/
 
 ## Требования
 
