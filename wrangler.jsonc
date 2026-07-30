@@ -13,11 +13,19 @@
       {
         "name": "ROOMS",
         "class_name": "RoomObject"
+      },
+      {
+        "name": "CHATS",
+        "class_name": "ChatObject"
       }
     ]
   },
   "exports": {
     "RoomObject": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "ChatObject": {
       "type": "durable-object",
       "storage": "sqlite"
     }
