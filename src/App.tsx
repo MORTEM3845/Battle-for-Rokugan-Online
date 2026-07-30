@@ -188,6 +188,9 @@ function RoomPage({ code }: { code: string }) {
             onSetResolutionReady={isReady => run(() => roomApi.setResolutionReady(session, isReady))}
             onPlayScout={orderId => run(() => roomApi.playScout(session, orderId))}
             onPlayShugenja={orderId => run(() => roomApi.playShugenja(session, orderId))}
+            onReturnDragonToken={tokenId => run(() => roomApi.returnDragonToken(session, tokenId))}
+            onUseScorpionPeek={orderId => run(() => roomApi.useScorpionPeek(session, orderId))}
+            onSwapUnicornOrders={orderIds => run(() => roomApi.swapUnicornOrders(session, orderIds))}
             onPassPlacement={() => run(() => roomApi.passPlacement(session))}
             onPlaceOrder={(tokenId, target) => run(() => roomApi.placeOrder(session, tokenId, target))}
             onPlaceControl={provinceId => run(() => roomApi.placeControl(session, provinceId))} />;

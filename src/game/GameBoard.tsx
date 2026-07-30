@@ -1,6 +1,7 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
     CLANS,
+    CLAN_RULES,
     type ActionCardType,
     type ActionCardHandView,
     type BattleTokenType,
@@ -29,6 +30,9 @@ interface GameBoardProps {
     onSetResolutionReady: (isReady: boolean) => Promise<void>;
     onPlayScout: (orderId: string) => Promise<void>;
     onPlayShugenja: (orderId: string) => Promise<void>;
+    onReturnDragonToken: (tokenId: string) => Promise<void>;
+    onUseScorpionPeek: (orderId: string | null) => Promise<void>;
+    onSwapUnicornOrders: (orderIds: string[]) => Promise<void>;
     onPassPlacement: () => Promise<void>;
     onPlaceOrder: (tokenId: string, target: OrderTarget) => Promise<void>;
     onPlaceControl: (provinceId: string) => Promise<void>;
@@ -73,6 +77,8 @@ const PHASE_LABELS: Record<GamePhase, string> = {
     finished: 'Игра завершена'
 };
 
+type SelectedClanAction = 'scorpion-peek' | 'unicorn-swap';
+
 export function GameBoard(props: GameBoardProps) {
     const {
         room,
@@ -84,6 +90,9 @@ export function GameBoard(props: GameBoardProps) {
         onSetResolutionReady,
         onPlayScout,
         onPlayShugenja,
+        onReturnDragonToken,
+        onUseScorpionPeek,
+        onSwapUnicornOrders,
         onPassPlacement,
         onPlaceOrder,
         onPlaceControl
@@ -91,7 +100,12 @@ export function GameBoard(props: GameBoardProps) {
     const game = room.game;
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [selectedActionCard, setSelectedActionCard] = useState<ActionCardType | null>(null);
+    const [selectedClanAction, setSelectedClanAction] = useState<SelectedClanAction | null>(null);
+    const [unicornOrderIds, setUnicornOrderIds] = useState<string[]>([]);
+    const [actionNotice, setActionNotice] = useState<string | null>(null);
     const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
+    const seenLogIds = useRef(new Set<string>());
+    const logsInitialized = useRef(false);
 
     useEffect(() => {
         if (!game?.hand.some(token => token.id === selectedTokenId))
@@ -103,6 +117,58 @@ export function GameBoard(props: GameBoardProps) {
             setSelectedActionCard(null);
     }, [currentPlayerId, game?.phase, game?.turnPlayerId]);
 
+    useEffect(() => {
+        const entries = game?.log ?? [];
+        if (!logsInitialized.current) {
+            seenLogIds.current = new Set(entries.map(entry => entry.id));
+            logsInitialized.current = true;
+            return;
+        }
+
+        const freshShugenja = [...entries].reverse().find(entry =>
+            !seenLogIds.current.has(entry.id) &&
+            entry.type === 'card' &&
+            entry.playerId === currentPlayerId &&
+            entry.message.toLocaleLowerCase('ru').includes('сюгэндзя')
+        );
+        for (const entry of entries)
+            seenLogIds.current.add(entry.id);
+        if (freshShugenja) {
+            const detail = freshShugenja.message
+                .replace(/^.*?:\s*/, '')
+                .replace('раскрыт и сброшен жетон', 'Вы убрали жетон');
+            setActionNotice(`✨ ${detail}`);
+        }
+    }, [currentPlayerId, game?.log]);
+
+    useEffect(() => {
+        if (!actionNotice)
+            return;
+        const timer = window.setTimeout(() => setActionNotice(null), 4200);
+        return () => window.clearTimeout(timer);
+    }, [actionNotice]);
+
+    useEffect(() => {
+        const player = room.players.find(candidate => candidate.id === currentPlayerId);
+        const stats = game?.players.find(candidate => candidate.playerId === currentPlayerId);
+        if (game?.clanActionPending === 'scorpion-peek' && player?.clanId === 'scorpion' && !stats?.clanAbilityUsed) {
+            setSelectedClanAction('scorpion-peek');
+            return;
+        }
+        if (game?.clanActionPending === 'unicorn-swap' && player?.clanId === 'unicorn' && !stats?.clanAbilityUsed) {
+            setSelectedClanAction('unicorn-swap');
+            return;
+        }
+        if (selectedClanAction === 'unicorn-swap') {
+            setSelectedClanAction(null);
+            setUnicornOrderIds([]);
+        }
+        if (selectedClanAction === 'scorpion-peek' &&
+            ((game?.phase !== 'placement' && game?.clanActionPending !== 'scorpion-peek') ||
+                stats?.clanAbilityUsed))
+            setSelectedClanAction(null);
+    }, [currentPlayerId, game?.clanActionPending, game?.phase, game?.players, room.players, selectedClanAction]);
+
     const turnPlayer = room.players.find(player => player.id === game?.turnPlayerId);
 
     if (!game)
@@ -113,10 +179,21 @@ export function GameBoard(props: GameBoardProps) {
     const firstPlayer = room.players.find(player => player.id === game.firstPlayerId);
     const selectedToken = game.hand.find(token => token.id === selectedTokenId) ?? null;
     const isMyTurn = game.turnPlayerId === currentPlayerId;
-    const canPlaceOrder = isMyTurn && game.phase === 'placement';
+    const mustReturnDragonToken = currentPlayer.clanId === 'dragon' && currentStats.mustReturnToken;
+    const canPlaceOrder = isMyTurn && game.phase === 'placement' && !mustReturnDragonToken;
     const canPlaceControl = isMyTurn && game.phase === 'setup' && currentStats.setupRemaining > 0;
     const setupComplete = game.players.every(player => player.setupRemaining === 0);
     const isRevealReady = game.readyPlayerIds.includes(currentPlayerId);
+    const canUseScorpionPeek = currentPlayer.clanId === 'scorpion' &&
+        (game.phase === 'placement' || game.clanActionPending === 'scorpion-peek') &&
+        currentStats.placedCount > 0 &&
+        !currentStats.clanAbilityUsed;
+    const scorpionActionPending = currentPlayer.clanId === 'scorpion' &&
+        game.clanActionPending === 'scorpion-peek' &&
+        !currentStats.clanAbilityUsed;
+    const unicornActionPending = currentPlayer.clanId === 'unicorn' &&
+        game.clanActionPending === 'unicorn-swap' &&
+        !currentStats.clanAbilityUsed;
 
     async function placeOrder(target: OrderTarget) {
         if (!selectedToken || !canPlaceOrder || busy)
@@ -134,6 +211,26 @@ export function GameBoard(props: GameBoardProps) {
             await onPlayScout(orderId);
         else
             await onPlayShugenja(orderId);
+    }
+
+    async function playClanAction(orderId: string) {
+        if (busy || !selectedClanAction)
+            return;
+        if (selectedClanAction === 'scorpion-peek') {
+            setSelectedClanAction(null);
+            await onUseScorpionPeek(orderId);
+            return;
+        }
+
+        const nextIds = unicornOrderIds.includes(orderId)
+            ? unicornOrderIds.filter(id => id !== orderId)
+            : [...unicornOrderIds, orderId].slice(-2);
+        setUnicornOrderIds(nextIds);
+        if (nextIds.length === 2) {
+            setSelectedClanAction(null);
+            setUnicornOrderIds([]);
+            await onSwapUnicornOrders(nextIds);
+        }
     }
 
     if (game.phase === 'objectives')
@@ -166,34 +263,22 @@ export function GameBoard(props: GameBoardProps) {
             </button>
         </header>
 
-        <div className={`turn-banner ${isMyTurn ? 'is-yours' : ''} ${game.phase === 'reveal' ? 'is-reveal' : ''}`}>
-            <span>{game.phase === 'reveal'
-                ? 'Все приказы открыты'
-                : game.phase === 'resolution'
-                    ? 'Раунд рассчитан'
-                    : isMyTurn ? 'Ваш ход' : `Ходит ${turnPlayer?.name ?? '—'}`}</span>
-            <b>{game.phase === 'setup'
-                ? `Разместить жетон контроля · осталось ${currentStats.setupRemaining}`
-                : game.phase === 'placement'
-                    ? currentStats.skipsPlacement
-                        ? 'Вы пропускаете оставшиеся ходы размещения'
-                        : `Приказ ${currentStats.placedCount + 1} из 5`
-                    : game.phase === 'reveal'
-                        ? 'Посмотрите жетоны и подтвердите готовность'
-                    : PHASE_LABELS[game.phase]}</b>
-        </div>
-
         <section className="game-stage" aria-label="Игровой стол">
-            <TokenLedger rows={game.tokenPool} />
-
             <div className="map-frame">
                 <ProvinceMap game={game} players={room.players} currentPlayerId={currentPlayerId}
                     hoveredPlayerId={hoveredPlayerId} selectedToken={selectedActionCard ? null : selectedToken}
                     selectedActionCard={selectedActionCard}
+                    selectedClanAction={selectedClanAction}
+                    selectedClanOrderIds={unicornOrderIds}
                     orderPlacementDisabled={!canPlaceOrder || busy}
                     controlPlacementActive={canPlaceControl && !busy}
                     onTarget={placeOrder} onActionCardTarget={playActionCard}
+                    onClanActionTarget={playClanAction}
                     onPlaceControl={onPlaceControl} />
+                {actionNotice && <div className="action-result-toast" role="status">
+                    <span>Сюгэндзя</span>
+                    <strong>{actionNotice}</strong>
+                </div>}
             </div>
 
             <div className="game-side-rail">
@@ -221,7 +306,36 @@ export function GameBoard(props: GameBoardProps) {
                             Пропустить оставшиеся ходы
                         </button>}
                     {game.phase === 'reveal' && <>
-                        <p>Все жетоны перевёрнуты. Изучите приказы соперников: исполнение начнётся, когда подтвердят все игроки.</p>
+                        <p>{game.clanActionPending === 'scorpion-peek'
+                            ? 'Приказы пока закрыты: клан Скорпиона завершает тайный осмотр перед вскрытием.'
+                            : game.clanActionPending === 'unicorn-swap'
+                                ? 'Приказы пока закрыты: клан Единорога завершает манёвр перед вскрытием.'
+                                : 'Все жетоны перевёрнуты. Изучите приказы соперников: исполнение начнётся, когда подтвердят все игроки.'}</p>
+                        {scorpionActionPending && <div className="clan-action-panel">
+                            <b>🦂 Шёпот Скорпиона</b>
+                            <span>Выберите один закрытый жетон соперника на карте или пропустите способность.</span>
+                            <button className="phase-action force-resolution" disabled={busy}
+                                onClick={() => {
+                                    setSelectedClanAction(null);
+                                    void onUseScorpionPeek(null);
+                                }}>
+                                Не подглядывать в этом раунде
+                            </button>
+                        </div>}
+                        {unicornActionPending && <div className="clan-action-panel">
+                            <b>🦄 Манёвр Единорога</b>
+                            <span>{unicornOrderIds.length === 0
+                                ? 'Выберите первый свой жетон на карте'
+                                : 'Теперь выберите второй жетон — они поменяются местами'}</span>
+                            <button className="phase-action force-resolution" disabled={busy}
+                                onClick={() => {
+                                    setSelectedClanAction(null);
+                                    setUnicornOrderIds([]);
+                                    void onSwapUnicornOrders([]);
+                                }}>
+                                Оставить жетоны на местах
+                            </button>
+                        </div>}
                         <div className="reveal-readiness">
                             {room.players.map(player => {
                                 const ready = game.readyPlayerIds.includes(player.id);
@@ -231,11 +345,13 @@ export function GameBoard(props: GameBoardProps) {
                             })}
                         </div>
                         <div className="resolution-actions">
-                            {currentPlayer.kind !== 'bot' && <button className="primary phase-action" disabled={busy}
+                            {currentPlayer.kind !== 'bot' && <button className="primary phase-action"
+                                disabled={busy || !!game.clanActionPending}
                                 onClick={() => onSetResolutionReady(!isRevealReady)}>
                                 {isRevealReady ? 'Отменить готовность' : 'Готов к исполнению'}
                             </button>}
-                            {currentPlayer.isHost && <button className="phase-action force-resolution" disabled={busy}
+                            {currentPlayer.isHost && <button className="phase-action force-resolution"
+                                disabled={busy}
                                 onClick={onAdvance}>Продолжить без готовности всех</button>}
                         </div>
                     </>}
@@ -258,6 +374,9 @@ export function GameBoard(props: GameBoardProps) {
         </section>
 
         <section className="private-rack" aria-label="Ваша область">
+            <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved}
+                finished={game.phase === 'finished'} />
+
             <div className="rack-player">
                 <ClanBadge player={currentPlayer} />
                 <div>
@@ -266,6 +385,8 @@ export function GameBoard(props: GameBoardProps) {
                     <small>{isMyTurn ? 'Ваш ход' : phaseStatus(game.phase, turnPlayer?.name)}</small>
                 </div>
             </div>
+
+            <TokenInventory rows={game.tokenPool} />
 
             <div className="token-hand">
                 {game.phase === 'setup' && <div className="setup-control-prompt">
@@ -281,24 +402,56 @@ export function GameBoard(props: GameBoardProps) {
                     onSelect={card => {
                         setSelectedTokenId(null);
                         setSelectedActionCard(selectedActionCard === card ? null : card);
+                        setSelectedClanAction(null);
                     }} />}
+                {game.phase === 'placement' && currentPlayer.clanId === 'scorpion' &&
+                    <button className={`clan-action-card scorpion-action ${selectedClanAction === 'scorpion-peek' ? 'is-selected' : ''}`}
+                        disabled={busy || !canUseScorpionPeek}
+                        onClick={() => {
+                            setSelectedActionCard(null);
+                            setSelectedTokenId(null);
+                            setSelectedClanAction(selectedClanAction === 'scorpion-peek' ? null : 'scorpion-peek');
+                        }}
+                        title={CLAN_RULES.scorpion.ability}>
+                        <span>🦂</span><b>Подглядеть</b><em>{currentStats.clanAbilityUsed ? '✓' : '1×'}</em>
+                    </button>}
                 {game.phase !== 'setup' && game.phase !== 'finished' && game.hand.map(token => <OrderToken key={token.id} token={token}
                     selected={token.id === selectedTokenId}
-                    disabled={!canPlaceOrder || busy ||
-                        (currentStats.isRonin && (token.type === 'raid' || token.type === 'diplomacy'))}
+                    returnMode={mustReturnDragonToken}
+                    disabled={mustReturnDragonToken
+                        ? busy || token.type === 'blank'
+                        : !canPlaceOrder || busy ||
+                            (currentStats.isRonin && (token.type === 'raid' || token.type === 'diplomacy'))}
                     onClick={() => {
+                        if (mustReturnDragonToken) {
+                            void onReturnDragonToken(token.id);
+                            return;
+                        }
                         setSelectedActionCard(null);
+                        setSelectedClanAction(null);
                         setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
                     }} />)}
                 {game.phase === 'finished' && <div className="empty-hand">Матч завершён.</div>}
             </div>
 
             <div className="rack-note">
-                <strong>{selectedActionCard
+                <strong>{mustReturnDragonToken
+                    ? 'Предвидение Дракона'
+                    : selectedClanAction === 'scorpion-peek'
+                        ? 'Шёпот Скорпиона'
+                        : selectedClanAction === 'unicorn-swap'
+                            ? 'Манёвр Единорога'
+                    : selectedActionCard
                     ? selectedActionCard === 'scout' ? 'Разведка' : 'Сюгэндзя'
                     : selectedToken ? TOKEN_INFO[selectedToken.type].label : game.phase === 'setup'
                     ? 'Начальные владения' : `${game.hand.length} жетонов в активе`}</strong>
-                <span>{selectedActionCard
+                <span>{mustReturnDragonToken
+                    ? 'Нажмите на один непустой жетон, чтобы вернуть его в запас и оставить шесть.'
+                    : selectedClanAction === 'scorpion-peek'
+                        ? 'Выберите один закрытый жетон соперника на карте.'
+                        : selectedClanAction === 'unicorn-swap'
+                            ? `Выберите два своих жетона на карте · выбрано ${unicornOrderIds.length}/2`
+                    : selectedActionCard
                     ? selectedActionCard === 'scout'
                         ? 'Тайно посмотрите один закрытый жетон соперника.'
                         : 'Раскройте и сбросьте один не защищённый благословением жетон соперника.'
@@ -362,7 +515,39 @@ function SecretObjectivePicker(props: {
     </main>;
 }
 
-function TokenLedger({ rows }: { rows: TokenPoolCountView[] }) {
+function SecretObjectiveTab(props: {
+    objective: GameViewState['secretObjective'];
+    achieved: boolean;
+    finished: boolean;
+}) {
+    const { objective, achieved, finished } = props;
+    if (!objective)
+        return null;
+
+    const status = achieved ? '✓ выполнена' : finished ? '✕ не выполнена' : '○ в процессе';
+    return <aside className={`objective-tab ${achieved ? 'is-achieved' : ''} ${finished && !achieved ? 'is-failed' : ''}`}
+        tabIndex={0}>
+        <div className="objective-tab-handle">
+            <span>🎴 Тайная цель</span>
+            <b>{status}</b>
+        </div>
+        <div className="objective-tab-card">
+            <small>Только для вас</small>
+            <strong>{objective.name}</strong>
+            <p>{objective.condition}</p>
+            <div>
+                <b>⭐ +{objective.honor}</b>
+                <span>{achieved
+                    ? 'Условие выполнено'
+                    : finished
+                        ? 'Условие не выполнено к концу партии'
+                        : 'Условие пока не выполнено'}</span>
+            </div>
+        </div>
+    </aside>;
+}
+
+function TokenInventory({ rows }: { rows: TokenPoolCountView[] }) {
     const totals = rows.reduce((result, row) => ({
         stock: result.stock + row.stock,
         hand: result.hand + row.hand,
@@ -370,18 +555,34 @@ function TokenLedger({ rows }: { rows: TokenPoolCountView[] }) {
         placed: result.placed + row.placed
     }), { stock: 0, hand: 0, discard: 0, placed: 0 });
 
-    return <aside className="token-ledger">
-        <div className="ledger-title"><span>Открытая информация</span><h3>Ваши жетоны</h3></div>
-        <div className="ledger-head"><span>Тип</span><b>Запас</b><b>Актив</b><b>Сброс</b><b>Поле</b></div>
-        <div className="ledger-rows">
-            {rows.map((row, index) => <div className="ledger-row" key={`${row.type}-${row.strength}-${index}`}>
-                <span><i>{TOKEN_INFO[row.type].symbol}</i>{TOKEN_INFO[row.type].label}{row.strength !== null ? ` ${row.strength}` : ''}</span>
-                <b>{row.stock}</b><b>{row.hand}</b><b>{row.discard}</b><b>{row.placed}</b>
-            </div>)}
-        </div>
-        <div className="ledger-total"><span>Всего</span><b>{totals.stock}</b><b>{totals.hand}</b><b>{totals.discard}</b><b>{totals.placed}</b></div>
-        <p>Набор жетонов одинаков у всех игроков.</p>
-    </aside>;
+    return <details className="token-inventory">
+        <summary title="Показать запас, актив, сброс и сыгранные жетоны">
+            <span className="inventory-stack" aria-hidden="true">
+                <i>兵</i><i>船</i><i>忍</i>
+            </span>
+            <span><b>{totals.hand}</b><small>жетонов в активе</small></span>
+        </summary>
+        <aside className="token-ledger">
+            <div className="ledger-title">
+                <span>Ваша открытая информация</span>
+                <h3>Запас боевых жетонов</h3>
+            </div>
+            <div className="ledger-head"><span>Жетон</span><b>Запас</b><b>Актив</b><b>Сброс</b><b>Поле</b></div>
+            <div className="ledger-rows">
+                {rows.map((row, index) => <div className={`ledger-row ${row.isClanToken ? 'is-clan-token' : ''}`}
+                    key={`${row.type}-${row.strength}-${row.isClanToken ? 'clan' : 'base'}-${index}`}>
+                    <span>
+                        <i className={`mini-token mini-token-${row.type}`}>{TOKEN_INFO[row.type].symbol}</i>
+                        <span>{TOKEN_INFO[row.type].label}{row.strength !== null ? ` ${row.strength}` : ''}</span>
+                        {row.isClanToken && <em>клановый</em>}
+                    </span>
+                    <b>{row.stock}</b><b>{row.hand}</b><b>{row.discard}</b><b>{row.placed}</b>
+                </div>)}
+            </div>
+            <div className="ledger-total"><span>Всего</span><b>{totals.stock}</b><b>{totals.hand}</b><b>{totals.discard}</b><b>{totals.placed}</b></div>
+            <p>Клановый жетон отмечен отдельно. Жетоны на поле и в сбросе видны всем.</p>
+        </aside>
+    </details>;
 }
 
 function GameEventLog({ entries }: { entries: GameLogEntry[] }) {
@@ -433,7 +634,9 @@ function HudPlayer(props: {
 }) {
     const { player, room, current, active, first, onHover } = props;
     const stats = room.game?.players.find(item => item.playerId === player.id);
+    const clanRule = player.clanId ? CLAN_RULES[player.clanId] : null;
     return <article className={`hud-player ${current ? 'is-current' : ''} ${active ? 'is-active' : ''}`} style={clanStyle(player)}
+        tabIndex={0}
         onPointerEnter={() => onHover(player.id)} onPointerLeave={() => onHover(null)}>
         <ClanBadge player={player} />
         <div className="hud-player-copy">
@@ -451,6 +654,11 @@ function HudPlayer(props: {
             <span>Провинции: {stats?.provinceCount ?? 0}</span>
             {stats?.isRonin && <span>Статус: ронин{stats.skipsPlacement ? ', пропускает размещение' : ''}</span>}
             <span>Контроль на подготовке: {stats?.setupRemaining ?? 0}</span>
+            {clanRule && <div className="clan-rule-preview">
+                <strong>{clanRule.name}</strong>
+                <span>{clanRule.ability}</span>
+                <em>Особый жетон: {clanRule.uniqueToken.label}</em>
+            </div>}
             <em>Владения и приказы игрока увеличены на карте</em>
         </div>
     </article>;
@@ -463,13 +671,21 @@ function ClanBadge({ player }: { player: RoomPlayer }) {
     </div>;
 }
 
-function OrderToken(props: { token: BattleTokenView; selected: boolean; disabled: boolean; onClick: () => void }) {
-    const { token, selected, disabled, onClick } = props;
+function OrderToken(props: {
+    token: BattleTokenView;
+    selected: boolean;
+    disabled: boolean;
+    returnMode?: boolean;
+    onClick: () => void;
+}) {
+    const { token, selected, disabled, returnMode, onClick } = props;
     const info = TOKEN_INFO[token.type];
-    return <button className={`battle-token battle-token-${token.type} ${selected ? 'is-selected' : ''}`}
-        type="button" disabled={disabled} onClick={onClick} title={info.hint}>
+    return <button className={`battle-token battle-token-${token.type} ${selected ? 'is-selected' : ''} ${token.isClanToken ? 'is-clan-token' : ''} ${returnMode && token.type !== 'blank' ? 'is-return-option' : ''}`}
+        type="button" disabled={disabled} onClick={onClick}
+        title={returnMode && token.type !== 'blank' ? 'Вернуть этот жетон в запас' : info.hint}>
         <span>{info.symbol}</span>
         {token.strength !== null && <b>{token.strength}</b>}
+        {token.isClanToken && <em>клан</em>}
         <small>{info.label}</small>
     </button>;
 }

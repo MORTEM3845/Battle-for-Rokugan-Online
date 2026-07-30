@@ -1,4 +1,14 @@
-import { forwardRef, memo, useEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from 'react';
+import {
+    forwardRef,
+    memo,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type MouseEvent,
+    type PointerEvent as ReactPointerEvent
+} from 'react';
 import {
     COASTAL_PROVINCES,
     LAND_BORDERS,
@@ -31,10 +41,13 @@ interface ProvinceMapProps {
     hoveredPlayerId: string | null;
     selectedToken: BattleTokenView | null;
     selectedActionCard: ActionCardType | null;
+    selectedClanAction: 'scorpion-peek' | 'unicorn-swap' | null;
+    selectedClanOrderIds: string[];
     orderPlacementDisabled: boolean;
     controlPlacementActive: boolean;
     onTarget: (target: OrderTarget) => void;
     onActionCardTarget: (orderId: string) => void;
+    onClanActionTarget: (orderId: string) => void;
     onPlaceControl: (provinceId: string) => void;
 }
 
@@ -55,14 +68,22 @@ export function ProvinceMap(props: ProvinceMapProps) {
         hoveredPlayerId,
         selectedToken,
         selectedActionCard,
+        selectedClanAction,
+        selectedClanOrderIds,
         orderPlacementDisabled,
         controlPlacementActive,
         onTarget,
         onActionCardTarget,
+        onClanActionTarget,
         onPlaceControl
     } = props;
 
     const layerRef = useRef<HTMLDivElement>(null);
+    const [provinceTooltip, setProvinceTooltip] = useState<{
+        text: string;
+        x: number;
+        y: number;
+    } | null>(null);
     const playersById = useMemo(() => Object.fromEntries(players.map(player => [player.id, player])), [players]);
     const currentPlayerGame = game.players.find(player => player.playerId === currentPlayerId);
     const currentPlayerIsRonin = currentPlayerGame?.isRonin ?? false;
@@ -79,6 +100,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
             const honor = PROVINCE_HONOR[id] ?? 0;
             const baseDefense = PROVINCE_BASE_DEFENSE[id] ?? 0;
             const earnedDefense = game.defenseBonuses[id] ?? 0;
+            const earnedDefenseStrength = earnedDefense * (owner?.clanId === 'crab' ? 3 : 1);
             const clanName = owner?.clanId
                 ? CLANS.find(clan => clan.id === owner.clanId)?.name ?? owner.clanId
                 : null;
@@ -93,8 +115,9 @@ export function ProvinceMap(props: ProvinceMapProps) {
             const honorText = SHADOWLANDS_PROVINCES.has(id)
                 ? `⭐ ${honor} на поле (0 чести в конце игры)`
                 : `⭐ ${honor}`;
-            const defenseText = `🛡 ${baseDefense + earnedDefense}` +
-                ` (база ${baseDefense}, открытые жетоны ${earnedDefense})`;
+            const defenseText = `🛡 ${baseDefense + earnedDefenseStrength}` +
+                ` (база ${baseDefense}, открытые жетоны ${earnedDefenseStrength}` +
+                `${owner?.clanId === 'crab' && earnedDefense > 0 ? ` = ${earnedDefense} × 3, Краб` : ''})`;
             const tooltip = `${PROVINCE_NAMES[id]} · ${honorText} · ${defenseText} · ${ownership}${special}`;
 
             path.dataset.provinceName = PROVINCE_NAMES[id];
@@ -131,11 +154,31 @@ export function ProvinceMap(props: ProvinceMapProps) {
             onTarget({ kind: 'province', id, provinceId: id });
     }
 
+    function handleProvincePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+        const path = findProvince(event.target);
+        if (!path) {
+            if (provinceTooltip)
+                setProvinceTooltip(null);
+            return;
+        }
+        const text = path.getAttribute('aria-label');
+        if (!text)
+            return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        setProvinceTooltip({
+            text,
+            x: Math.min(Math.max(4, event.clientX - bounds.left), Math.max(4, bounds.width - 330)),
+            y: Math.min(Math.max(4, event.clientY - bounds.top), Math.max(4, bounds.height - 145))
+        });
+    }
+
     const landTargets = selectedToken && ['army', 'blank'].includes(selectedToken.type);
     const seaTargets = selectedToken && ['fleet', 'blank'].includes(selectedToken.type);
     const orderTargets = selectedToken?.type === 'blessing';
 
-    return <div className={`province-map landscape-map phase-${game.phase}`}>
+    return <div className={`province-map landscape-map phase-${game.phase}`}
+        onPointerMove={handleProvincePointerMove}
+        onPointerLeave={() => setProvinceTooltip(null)}>
         <div className="rotated-map" onClick={handleMapClick}>
             <img className="rokugan-map-image" src="/assets/rokugan-map.webp" alt="Карта Рокугана" draggable={false} />
 
@@ -166,8 +209,11 @@ export function ProvinceMap(props: ProvinceMapProps) {
                 })}
 
                 {PROVINCE_IDS.map(provinceId => {
-                    const bonus = (PROVINCE_BASE_DEFENSE[provinceId] ?? 0) +
-                        (game.defenseBonuses[provinceId] ?? 0);
+                    const ownerId = game.provinces[provinceId];
+                    const owner = ownerId ? playersById[ownerId] : undefined;
+                    const earnedMarkers = game.defenseBonuses[provinceId] ?? 0;
+                    const earnedDefense = earnedMarkers * (owner?.clanId === 'crab' ? 3 : 1);
+                    const bonus = (PROVINCE_BASE_DEFENSE[provinceId] ?? 0) + earnedDefense;
                     if (bonus <= 0)
                         return null;
 
@@ -177,7 +223,10 @@ export function ProvinceMap(props: ProvinceMapProps) {
 
                     return <span key={`defense-${provinceId}`} className="defense-marker"
                         style={markerStyle(point.x + 25, point.y - 20)}
-                        title={`${PROVINCE_NAMES[provinceId]}: общая защита +${bonus}`}>
+                        title={`${PROVINCE_NAMES[provinceId]}: общая защита +${bonus}` +
+                            `${owner?.clanId === 'crab' && earnedMarkers > 0
+                                ? ` (${earnedMarkers} открытых жетонов Краба × 3)`
+                                : ''}`}>
                         🛡<b>+{bonus}</b>
                     </span>;
                 })}
@@ -275,22 +324,44 @@ export function ProvinceMap(props: ProvinceMapProps) {
                         (selectedActionCard === 'scout'
                             ? !order.revealed && order.type !== 'blessing'
                             : true);
-                    const isInteractive = (canBless || canUseActionCard) && !orderPlacementDisabled;
+                    const canUseClanAction = selectedClanAction === 'scorpion-peek'
+                        ? order.playerId !== currentPlayerId &&
+                            !order.revealed &&
+                            order.type !== 'blessing' &&
+                            !protectedByBlessing
+                        : selectedClanAction === 'unicorn-swap'
+                            ? order.playerId === currentPlayerId &&
+                                order.target.kind !== 'order' &&
+                                !protectedByBlessing
+                            : false;
+                    const selectedForClanAction = selectedClanOrderIds.includes(order.id);
+                    const isInteractive = ((canBless || canUseActionCard) && !orderPlacementDisabled) ||
+                        canUseClanAction;
 
                     return <button key={order.id}
-                        className={`placed-order placed-order-${order.type} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${game.phase === 'reveal' && order.revealed ? 'is-revealed' : ''}`}
+                        className={`placed-order placed-order-${order.type} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
                         style={markerStyle(placement.x, placement.y, color, placement.angle)}
                         disabled={!isInteractive}
-                        onClick={() => canUseActionCard
-                            ? onActionCardTarget(order.id)
-                            : onTarget({ kind: 'order', id: order.id })}
+                        onClick={() => canUseClanAction
+                            ? onClanActionTarget(order.id)
+                            : canUseActionCard
+                                ? onActionCardTarget(order.id)
+                                : onTarget({ kind: 'order', id: order.id })}
                         title={order.type === 'hidden' ? 'Скрытый приказ' : tokenLabel(order.type)}>
                         <span>{tokenSymbol(order.type)}</span>
                         {order.strength !== null && <b>{order.strength}</b>}
+                        {order.isClanToken && <i>◆</i>}
                     </button>;
                 })}
             </div>
         </div>
+
+        {provinceTooltip && <div className="province-tooltip" role="tooltip"
+            style={{ left: provinceTooltip.x, top: provinceTooltip.y }}>
+            {provinceTooltip.text.split(' · ').map((part, index) =>
+                <span key={`${part}-${index}`}>{part}</span>
+            )}
+        </div>}
 
         {selectedToken && <div className="target-legend">
             <b>{TOKEN_INFO[selectedToken.type].label}</b>
@@ -302,6 +373,13 @@ export function ProvinceMap(props: ProvinceMapProps) {
             <span>{selectedActionCard === 'scout'
                 ? 'Выберите закрытый жетон соперника, чтобы тайно посмотреть его.'
                 : 'Выберите жетон соперника, чтобы раскрыть и сбросить его.'}</span>
+        </div>}
+
+        {selectedClanAction && <div className="target-legend clan-action-legend">
+            <b>{selectedClanAction === 'scorpion-peek' ? '🦂 Шёпот Скорпиона' : '🦄 Манёвр Единорога'}</b>
+            <span>{selectedClanAction === 'scorpion-peek'
+                ? 'Выберите закрытый и не защищённый благословением жетон соперника.'
+                : `Выберите два своих жетона · ${selectedClanOrderIds.length}/2`}</span>
         </div>}
 
         {controlPlacementActive && <div className="target-legend setup-legend">

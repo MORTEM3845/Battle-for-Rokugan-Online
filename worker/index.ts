@@ -94,6 +94,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             return forward(request, stub, '/game/cards/scout');
         if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'cards' && parts[5] === 'shugenja')
             return forward(request, stub, '/game/cards/shugenja');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'dragon-return')
+            return forward(request, stub, '/game/clan/dragon-return');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'scorpion-peek')
+            return forward(request, stub, '/game/clan/scorpion-peek');
+        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'unicorn-swap')
+            return forward(request, stub, '/game/clan/unicorn-swap');
         if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'orders')
             return forward(request, stub, '/game/orders');
         if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'pass')

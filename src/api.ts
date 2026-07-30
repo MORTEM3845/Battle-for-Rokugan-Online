@@ -85,6 +85,24 @@ export const roomApi = {
         session.playerToken
     ),
 
+    returnDragonToken: (session: PlayerSession, tokenId: string) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/clan/dragon-return`,
+        { method: 'POST', body: JSON.stringify({ tokenId }) },
+        session.playerToken
+    ),
+
+    useScorpionPeek: (session: PlayerSession, orderId: string | null) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/clan/scorpion-peek`,
+        { method: 'POST', body: JSON.stringify({ orderId }) },
+        session.playerToken
+    ),
+
+    swapUnicornOrders: (session: PlayerSession, orderIds: string[]) => request<RoomState>(
+        `/api/rooms/${session.roomCode}/game/clan/unicorn-swap`,
+        { method: 'POST', body: JSON.stringify({ orderIds }) },
+        session.playerToken
+    ),
+
     placeOrder: (session: PlayerSession, tokenId: string, target: OrderTarget) => request<RoomState>(
         `/api/rooms/${session.roomCode}/game/orders`,
         { method: 'POST', body: JSON.stringify({ tokenId, target }) },

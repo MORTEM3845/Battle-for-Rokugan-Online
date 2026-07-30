@@ -20,12 +20,62 @@ export type GamePhase = 'objectives' | 'setup' | 'placement' | 'reveal' | 'resol
 export type OrderTargetKind = 'province' | 'land-border' | 'sea-border' | 'order';
 export type ProvinceSpecial = 'peace' | 'scorched';
 export type ActionCardType = 'scout' | 'shugenja';
+export type ClanActionType = 'scorpion-peek' | 'unicorn-swap';
 export type GameLogEventType = 'round' | 'reveal' | 'raid' | 'diplomacy' | 'battle' | 'control' | 'defense' | 'card' | 'score';
+
+export interface ClanRuleDefinition {
+    name: string;
+    ability: string;
+    uniqueToken: {
+        type: BattleTokenType;
+        strength: number | null;
+        label: string;
+    };
+}
+
+export const CLAN_RULES: Record<ClanId, ClanRuleDefinition> = {
+    crab: {
+        name: 'Стойкость Краба',
+        ability: 'Каждый ваш открытый жетон контроля даёт +3 защиты вместо +1 (но по-прежнему 1 честь).',
+        uniqueToken: { type: 'fleet', strength: 3, label: 'Флот 3' }
+    },
+    crane: {
+        name: 'Безупречная честь',
+        ability: 'При равенстве сил в сражении побеждает клан Журавля.',
+        uniqueToken: { type: 'diplomacy', strength: null, label: 'Дополнительная дипломатия' }
+    },
+    dragon: {
+        name: 'Предвидение Дракона',
+        ability: 'Набирая жетоны, возьмите на один больше, затем верните один непустой жетон в запас.',
+        uniqueToken: { type: 'blessing', strength: 3, label: 'Благословение 3' }
+    },
+    lion: {
+        name: 'Несокрушимый Лев',
+        ability: 'Пустой жетон, поставленный на защиту, имеет силу 2 и возвращается в актив после боя.',
+        uniqueToken: { type: 'army', strength: 6, label: 'Армия 6' }
+    },
+    phoenix: {
+        name: 'Пламя Феникса',
+        ability: 'Атакуя столицу, вы игнорируете её базовую защиту.',
+        uniqueToken: { type: 'blessing', strength: 3, label: 'Благословение 3' }
+    },
+    scorpion: {
+        name: 'Шёпот Скорпиона',
+        ability: 'Раз в раунд после размещения жетона можно тайно посмотреть один жетон соперника.',
+        uniqueToken: { type: 'shinobi', strength: 3, label: 'Синоби 3' }
+    },
+    unicorn: {
+        name: 'Манёвр Единорога',
+        ability: 'Перед вскрытием можно один раз поменять местами два своих боевых жетона.',
+        uniqueToken: { type: 'raid', strength: null, label: 'Дополнительный погром' }
+    }
+};
 
 export interface BattleTokenView {
     id: string;
     type: BattleTokenType;
     strength: number | null;
+    isClanToken?: boolean;
 }
 
 export interface OrderTarget {
@@ -41,6 +91,7 @@ export interface PlacedOrderView {
     type: VisibleTokenType;
     strength: number | null;
     revealed: boolean;
+    isClanToken?: boolean;
 }
 
 export interface GamePlayerView {
@@ -54,6 +105,8 @@ export interface GamePlayerView {
     hasSecretObjective: boolean;
     isRonin: boolean;
     skipsPlacement: boolean;
+    clanAbilityUsed: boolean;
+    mustReturnToken: boolean;
 }
 
 export interface TokenPoolCountView {
@@ -64,6 +117,7 @@ export interface TokenPoolCountView {
     discard: number;
     placed: number;
     total: number;
+    isClanToken?: boolean;
 }
 
 export interface ActionCardHandView {
@@ -117,6 +171,8 @@ export interface GameViewState {
     canPassPlacement: boolean;
     secretObjectiveOptions: SecretObjectiveDefinition[];
     secretObjective: SecretObjectiveDefinition | null;
+    secretObjectiveAchieved: boolean;
+    clanActionPending: ClanActionType | null;
     results: GameResultView[] | null;
 }
 
