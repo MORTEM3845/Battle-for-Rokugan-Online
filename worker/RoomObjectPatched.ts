@@ -184,6 +184,9 @@ export class RoomObject extends BaseRoomObject {
             return false;
 
         if (request.method === 'POST' && path === '/game/advance') {
+            const host = this.patchFindPlayer(request, room);
+            if (!host?.isHost)
+                return false;
             const body = await request.clone().json<{ expectedPhase?: string }>();
             return body.expectedPhase === 'reveal';
         }
