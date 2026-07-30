@@ -41,7 +41,7 @@ export const CLAN_RULES: Record<ClanId, ClanRuleDefinition> = {
     },
     crane: {
         name: 'Безупречная честь',
-        ability: 'При равенстве сил в сражении побеждает клан Журавля.',
+        ability: 'При равенстве наибольших сил в сражении побеждает клан Журавля.',
         uniqueToken: { type: 'diplomacy', strength: null, label: 'Дополнительная дипломатия' }
     },
     dragon: {
@@ -51,12 +51,12 @@ export const CLAN_RULES: Record<ClanId, ClanRuleDefinition> = {
     },
     lion: {
         name: 'Несокрушимый Лев',
-        ability: 'Пустой жетон, поставленный на защиту, имеет силу 2 и возвращается в актив после боя.',
+        ability: 'Пустой жетон Льва, размещённый для защиты своей провинции, считается жетоном с силой 2.',
         uniqueToken: { type: 'army', strength: 6, label: 'Армия 6' }
     },
     phoenix: {
         name: 'Пламя Феникса',
-        ability: 'Атакуя столицу, вы игнорируете её базовую защиту.',
+        ability: 'Атакуя столицу, вы игнорируете только её напечатанный бонус защиты +2, но не открытые жетоны контроля.',
         uniqueToken: { type: 'blessing', strength: 3, label: 'Благословение 3' }
     },
     scorpion: {
@@ -66,7 +66,7 @@ export const CLAN_RULES: Record<ClanId, ClanRuleDefinition> = {
     },
     unicorn: {
         name: 'Манёвр Единорога',
-        ability: 'Перед вскрытием можно один раз поменять местами два своих боевых жетона.',
+        ability: 'Перед вскрытием можно один раз поменять местами два своих незащищённых благословением боевых жетона.',
         uniqueToken: { type: 'raid', strength: null, label: 'Дополнительный погром' }
     }
 };
