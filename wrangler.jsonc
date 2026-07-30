@@ -14,12 +14,12 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["RoomObject"]
+  "exports": {
+    "RoomObject": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
-  ],
+  },
   "observability": {
     "enabled": true
   }

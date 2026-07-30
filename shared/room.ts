@@ -1,3 +1,5 @@
+import type { SecretObjectiveDefinition } from './objectives';
+
 export const CLANS = [
     { id: 'crab', name: 'Краб' },
     { id: 'crane', name: 'Журавль' },
@@ -14,14 +16,16 @@ export type RoomStatus = 'lobby' | 'playing';
 export type BattleTokenType = 'army' | 'fleet' | 'shinobi' | 'blessing' | 'diplomacy' | 'raid' | 'blank';
 export type VisibleTokenType = BattleTokenType | 'hidden';
 export type GameStage = 'setup' | 'rounds' | 'finished';
-export type GamePhase = 'setup' | 'placement' | 'resolution' | 'finished';
+export type GamePhase = 'objectives' | 'setup' | 'placement' | 'reveal' | 'resolution' | 'finished';
 export type OrderTargetKind = 'province' | 'land-border' | 'sea-border' | 'order';
+export type ProvinceSpecial = 'peace' | 'scorched';
+export type ActionCardType = 'scout' | 'shugenja';
+export type GameLogEventType = 'round' | 'reveal' | 'raid' | 'diplomacy' | 'battle' | 'control' | 'defense' | 'card' | 'score';
 
 export interface BattleTokenView {
     id: string;
     type: BattleTokenType;
     strength: number | null;
-    isClanSpecial: boolean;
 }
 
 export interface OrderTarget {
@@ -47,6 +51,9 @@ export interface GamePlayerView {
     placedCount: number;
     provinceCount: number;
     setupRemaining: number;
+    hasSecretObjective: boolean;
+    isRonin: boolean;
+    skipsPlacement: boolean;
 }
 
 export interface TokenPoolCountView {
@@ -56,8 +63,39 @@ export interface TokenPoolCountView {
     hand: number;
     discard: number;
     placed: number;
-    commonTotal: number;
-    specialTotal: number;
+    total: number;
+}
+
+export interface ActionCardHandView {
+    scout: number;
+    shugenja: number;
+}
+
+export interface GameResultView {
+    playerId: string;
+    provinceHonor: number;
+    controlHonor: number;
+    regionHonor: number;
+    secretHonor: number;
+    totalHonor: number;
+    controlledRegions: string[];
+    provinceCount: number;
+    provinceHonorSources: Array<{ provinceId: string; name: string; honor: number }>;
+    controlHonorSources: Array<{ provinceId: string; name: string; honor: number }>;
+    regionHonorSources: Array<{ name: string; honor: number }>;
+    secretObjective: SecretObjectiveDefinition | null;
+    secretObjectiveAchieved: boolean;
+    rank: number;
+    isWinner: boolean;
+}
+
+export interface GameLogEntry {
+    id: string;
+    round: number;
+    type: GameLogEventType;
+    message: string;
+    provinceId?: string;
+    playerId?: string;
 }
 
 export interface GameViewState {
@@ -68,9 +106,18 @@ export interface GameViewState {
     turnPlayerId: string | null;
     players: GamePlayerView[];
     provinces: Record<string, string | null>;
+    defenseBonuses: Record<string, number>;
+    provinceSpecials: Record<string, ProvinceSpecial>;
+    readyPlayerIds: string[];
     orders: PlacedOrderView[];
+    log: GameLogEntry[];
     hand: BattleTokenView[];
     tokenPool: TokenPoolCountView[];
+    actionCards: ActionCardHandView;
+    canPassPlacement: boolean;
+    secretObjectiveOptions: SecretObjectiveDefinition[];
+    secretObjective: SecretObjectiveDefinition | null;
+    results: GameResultView[] | null;
 }
 
 export interface RoomPlayer {

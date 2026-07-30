@@ -112,7 +112,9 @@ function RoomPage({ code }: { code: string }) {
             try {
                 const state = await roomApi.get(code, session);
                 if (active) {
-                    setRoom(state);
+                    setRoom(current => current && JSON.stringify(current) === JSON.stringify(state)
+                        ? current
+                        : state);
                     setError('');
                 }
             } catch (e) {
@@ -120,7 +122,7 @@ function RoomPage({ code }: { code: string }) {
                     setError(e instanceof Error ? e.message : 'Не удалось загрузить комнату');
             } finally {
                 if (active)
-                    timer = window.setTimeout(refresh, 1000);
+                    timer = window.setTimeout(refresh, document.hidden ? 15_000 : 2_000);
             }
         };
 
@@ -181,7 +183,12 @@ function RoomPage({ code }: { code: string }) {
 
     if (room.status === 'playing') {
         return <GameBoard room={room} currentPlayerId={currentPlayer.id} busy={busy} error={error}
-            onAdvance={() => run(() => roomApi.advanceGame(session))}
+            onAdvance={() => run(() => roomApi.advanceGame(session, room.game!.phase))}
+            onChooseSecretObjective={objectiveId => run(() => roomApi.chooseSecretObjective(session, objectiveId))}
+            onSetResolutionReady={isReady => run(() => roomApi.setResolutionReady(session, isReady))}
+            onPlayScout={orderId => run(() => roomApi.playScout(session, orderId))}
+            onPlayShugenja={orderId => run(() => roomApi.playShugenja(session, orderId))}
+            onPassPlacement={() => run(() => roomApi.passPlacement(session))}
             onPlaceOrder={(tokenId, target) => run(() => roomApi.placeOrder(session, tokenId, target))}
             onPlaceControl={provinceId => run(() => roomApi.placeControl(session, provinceId))} />;
     }

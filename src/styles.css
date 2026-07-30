@@ -54,7 +54,7 @@ h2 { margin-bottom: 4px; font-family: Georgia, serif; }
 .clan-card strong { font-family: Georgia, serif; font-size: 20px; }
 .clan-card span { margin-top: 5px; color: #b9a99d; font-size: 12px; }
 .clan-card.selected { outline: 2px solid #f1c07b; border-color: #f1c07b; }
-.clan-crab { box-shadow: inset 0 -50px 70px rgba(65, 88, 120, .25); }
+.clan-crab { box-shadow: inset 0 -50px 70px rgba(235, 235, 225, .28); }
 .clan-crane { box-shadow: inset 0 -50px 70px rgba(85, 157, 190, .25); }
 .clan-dragon { box-shadow: inset 0 -50px 70px rgba(52, 130, 78, .25); }
 .clan-lion { box-shadow: inset 0 -50px 70px rgba(186, 147, 45, .25); }
