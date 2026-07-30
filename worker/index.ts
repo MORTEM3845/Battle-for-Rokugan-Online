@@ -1,9 +1,11 @@
+import { ChatObject } from './ChatObject';
 import { RoomObject } from './RoomObject';
 
-export { RoomObject };
+export { ChatObject, RoomObject };
 
 interface Env {
     ROOMS: DurableObjectNamespace;
+    CHATS: DurableObjectNamespace;
     ASSETS: Fetcher;
 }
 
@@ -27,6 +29,10 @@ function getRoomStub(env: Env, code: string): DurableObjectStub {
     return env.ROOMS.get(env.ROOMS.idFromName(code));
 }
 
+function getChatStub(env: Env, code: string): DurableObjectStub {
+    return env.CHATS.get(env.CHATS.idFromName(code));
+}
+
 function normalizeCode(value: string): string {
     return value.trim().toUpperCase();
 }
@@ -39,75 +45,84 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
 
-        if (url.pathname === '/api/health')
-            return json({ status: 'ok' });
+    if (url.pathname === '/api/health')
+        return json({ status: 'ok' });
 
-        if (request.method === 'POST' && url.pathname === '/api/rooms') {
-            const body = await request.json<{ playerName: string }>();
+    if (request.method === 'POST' && url.pathname === '/api/rooms') {
+        const body = await request.json<{ playerName: string }>();
 
-            for (let attempt = 0; attempt < 5; attempt++) {
-                const code = createRoomCode();
-                const response = await getRoomStub(env, code).fetch('https://room/create', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ code, playerName: body.playerName })
-                });
-                if (response.status !== 409)
-                    return response;
-            }
-
-            return json({ error: 'Не удалось создать уникальный код комнаты' }, 500);
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const code = createRoomCode();
+            const response = await getRoomStub(env, code).fetch('https://room/create', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ code, playerName: body.playerName })
+            });
+            if (response.status !== 409)
+                return response;
         }
 
-        if (parts[0] !== 'api')
-            return env.ASSETS.fetch(request);
+        return json({ error: 'Не удалось создать уникальный код комнаты' }, 500);
+    }
 
-        if (parts[1] !== 'rooms' || !parts[2])
-            return json({ error: 'Маршрут API не найден' }, 404);
+    if (parts[0] !== 'api')
+        return env.ASSETS.fetch(request);
 
-        const code = normalizeCode(parts[2]);
-        if (!/^[A-Z2-9]{6}$/.test(code))
-            return json({ error: 'Некорректный код комнаты' }, 400);
+    if (parts[1] !== 'rooms' || !parts[2])
+        return json({ error: 'Маршрут API не найден' }, 404);
 
-        const stub = getRoomStub(env, code);
-        if (request.method === 'GET' && parts.length === 3)
-            return forward(request, stub, '/state');
-        if (request.method === 'POST' && parts[3] === 'join')
-            return forward(request, stub, '/join');
-        if (request.method === 'POST' && parts[3] === 'clan')
-            return forward(request, stub, '/clan');
-        if (request.method === 'POST' && parts[3] === 'ready')
-            return forward(request, stub, '/ready');
-        if (request.method === 'POST' && parts[3] === 'bots')
-            return forward(request, stub, '/bots');
-        if (request.method === 'DELETE' && parts[3] === 'bots' && parts[4])
-            return forward(request, stub, `/bots/${encodeURIComponent(parts[4])}`);
-        if (request.method === 'POST' && parts[3] === 'start')
-            return forward(request, stub, '/start');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'advance')
-            return forward(request, stub, '/game/advance');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'objective')
-            return forward(request, stub, '/game/objective');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'ready')
-            return forward(request, stub, '/game/ready');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'cards' && parts[5] === 'scout')
-            return forward(request, stub, '/game/cards/scout');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'cards' && parts[5] === 'shugenja')
-            return forward(request, stub, '/game/cards/shugenja');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'dragon-return')
-            return forward(request, stub, '/game/clan/dragon-return');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'scorpion-peek')
-            return forward(request, stub, '/game/clan/scorpion-peek');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'unicorn-swap')
-            return forward(request, stub, '/game/clan/unicorn-swap');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'orders')
-            return forward(request, stub, '/game/orders');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'pass')
-            return forward(request, stub, '/game/pass');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'control')
-            return forward(request, stub, '/game/control');
-        if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'bot-turn')
-            return forward(request, stub, '/game/bot-turn');
+    const code = normalizeCode(parts[2]);
+    if (!/^[A-Z2-9]{6}$/.test(code))
+        return json({ error: 'Некорректный код комнаты' }, 400);
+
+    const roomStub = getRoomStub(env, code);
+    if (parts[3] === 'chat' && (request.method === 'GET' || request.method === 'POST')) {
+        const roomResponse = await roomStub.fetch(new Request('https://room/state', {
+            headers: request.headers
+        }));
+        if (!roomResponse.ok)
+            return roomResponse;
+        return forward(request, getChatStub(env, code), '/messages');
+    }
+
+    if (request.method === 'GET' && parts.length === 3)
+        return forward(request, roomStub, '/state');
+    if (request.method === 'POST' && parts[3] === 'join')
+        return forward(request, roomStub, '/join');
+    if (request.method === 'POST' && parts[3] === 'clan')
+        return forward(request, roomStub, '/clan');
+    if (request.method === 'POST' && parts[3] === 'ready')
+        return forward(request, roomStub, '/ready');
+    if (request.method === 'POST' && parts[3] === 'bots')
+        return forward(request, roomStub, '/bots');
+    if (request.method === 'DELETE' && parts[3] === 'bots' && parts[4])
+        return forward(request, roomStub, `/bots/${encodeURIComponent(parts[4])}`);
+    if (request.method === 'POST' && parts[3] === 'start')
+        return forward(request, roomStub, '/start');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'advance')
+        return forward(request, roomStub, '/game/advance');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'objective')
+        return forward(request, roomStub, '/game/objective');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'ready')
+        return forward(request, roomStub, '/game/ready');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'cards' && parts[5] === 'scout')
+        return forward(request, roomStub, '/game/cards/scout');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'cards' && parts[5] === 'shugenja')
+        return forward(request, roomStub, '/game/cards/shugenja');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'dragon-return')
+        return forward(request, roomStub, '/game/clan/dragon-return');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'scorpion-peek')
+        return forward(request, roomStub, '/game/clan/scorpion-peek');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'clan' && parts[5] === 'unicorn-swap')
+        return forward(request, roomStub, '/game/clan/unicorn-swap');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'orders')
+        return forward(request, roomStub, '/game/orders');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'pass')
+        return forward(request, roomStub, '/game/pass');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'control')
+        return forward(request, roomStub, '/game/control');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'bot-turn')
+        return forward(request, roomStub, '/game/bot-turn');
 
     return json({ error: 'Маршрут API не найден' }, 404);
 }
