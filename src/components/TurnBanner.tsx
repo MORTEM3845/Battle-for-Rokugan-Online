@@ -8,31 +8,29 @@ interface TurnBannerProps {
 
 export function TurnBanner({ room, currentPlayerId }: TurnBannerProps) {
     const game = room.game;
-    if (!game || game.phase === 'resolution' || game.phase === 'finished')
-        return null;
-
+    const hidden = !game || game.phase === 'resolution' || game.phase === 'finished';
     const currentPlayer = room.players.find(player => player.id === currentPlayerId);
-    const turnPlayer = room.players.find(player => player.id === game.turnPlayerId);
-    const currentStats = game.players.find(player => player.playerId === currentPlayerId);
+    const turnPlayer = room.players.find(player => player.id === game?.turnPlayerId);
+    const currentStats = game?.players.find(player => player.playerId === currentPlayerId);
     const pendingForCurrentPlayer =
-        game.clanActionPending === 'scorpion-peek' && currentPlayer?.clanId === 'scorpion' ||
-        game.clanActionPending === 'unicorn-swap' && currentPlayer?.clanId === 'unicorn';
+        game?.clanActionPending === 'scorpion-peek' && currentPlayer?.clanId === 'scorpion' ||
+        game?.clanActionPending === 'unicorn-swap' && currentPlayer?.clanId === 'unicorn';
 
     let isYours = false;
     let title = 'ОЖИДАНИЕ';
     let text = 'Другие игроки завершают действие';
 
-    if (game.phase === 'objectives') {
+    if (game?.phase === 'objectives') {
         isYours = !currentStats?.hasSecretObjective;
         title = isYours ? 'ВАШЕ РЕШЕНИЕ' : 'ОЖИДАЕМ ИГРОКОВ';
         text = isYours ? 'Выберите тайную цель' : 'Не все игроки выбрали тайную цель';
-    } else if (game.phase === 'setup' || game.phase === 'placement') {
+    } else if (game?.phase === 'setup' || game?.phase === 'placement') {
         isYours = game.turnPlayerId === currentPlayerId;
         title = isYours ? 'ВАШ ХОД' : 'СЕЙЧАС ХОДИТ';
         text = isYours
             ? game.phase === 'setup' ? 'Разместите жетон контроля на свободной провинции' : 'Выберите приказ и цель на карте'
             : turnPlayer?.name ?? 'другой игрок';
-    } else if (game.phase === 'reveal') {
+    } else if (game?.phase === 'reveal') {
         const isReady = game.readyPlayerIds.includes(currentPlayerId);
         isYours = pendingForCurrentPlayer || (!game.clanActionPending && !isReady);
         title = isYours ? 'ТРЕБУЕТСЯ ВАШЕ ДЕЙСТВИЕ' : 'ВСКРЫТИЕ ПРИКАЗОВ';
@@ -43,9 +41,12 @@ export function TurnBanner({ room, currentPlayerId }: TurnBannerProps) {
 
     useEffect(() => {
         const defaultTitle = 'Битва за Рокуган';
-        document.title = isYours ? `⚔ ${title} — Битва за Рокуган` : defaultTitle;
+        document.title = !hidden && isYours ? `⚔ ${title} — Битва за Рокуган` : defaultTitle;
         return () => { document.title = defaultTitle; };
-    }, [isYours, title]);
+    }, [hidden, isYours, title]);
+
+    if (hidden)
+        return null;
 
     return <div className={`prominent-turn-banner ${isYours ? 'is-yours' : ''}`} role="status" aria-live="polite">
         <span className="turn-banner-mon">戦</span>
