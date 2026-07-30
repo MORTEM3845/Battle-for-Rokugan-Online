@@ -57,7 +57,7 @@ async function registerChatSession(env: Env, response: Response): Promise<Respon
         return response;
 
     try {
-        const payload = await response.clone().json<RoomSessionPayload>();
+        const payload = await response.clone().json() as RoomSessionPayload;
         const player = payload.room.players.find(candidate => candidate.id === payload.session.playerId);
         if (!player)
             return response;
