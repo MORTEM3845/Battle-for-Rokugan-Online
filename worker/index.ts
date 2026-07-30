@@ -4,6 +4,7 @@ export { RoomObject };
 
 interface Env {
     ROOMS: DurableObjectNamespace;
+    ASSETS: Fetcher;
 }
 
 const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -58,7 +59,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             return json({ error: 'Не удалось создать уникальный код комнаты' }, 500);
         }
 
-        if (parts[0] !== 'api' || parts[1] !== 'rooms' || !parts[2])
+        if (parts[0] !== 'api')
+            return env.ASSETS.fetch(request);
+
+        if (parts[1] !== 'rooms' || !parts[2])
             return json({ error: 'Маршрут API не найден' }, 404);
 
         const code = normalizeCode(parts[2]);
