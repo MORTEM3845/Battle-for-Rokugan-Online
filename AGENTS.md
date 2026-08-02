@@ -2,33 +2,23 @@
 
 ## Context economy
 
-- Use CodeGraph first for symbols, inheritance, callers, callees and impact analysis.
-- Use targeted `rg` only for literals, CSS, localization, assets or when graph lookup is insufficient.
-- Read the smallest useful file range and avoid repeated repository exploration.
-- Never inspect `.git`, `.codegraph`, `.wrangler`, `node_modules`, `dist`, generated output or binary assets unless the task requires them.
-- Use subagents only for independent, bounded investigations; request findings, symbols and evidence rather than narratives.
-- Keep plans and final reports concise. Prefer exact paths, symbols, commands and evidence.
+- Use CodeGraph first for symbol discovery, call paths, inheritance and impact analysis.
+- Reuse CodeGraph results already obtained in the current chat; do not repeat equivalent graph queries.
+- Do not use repository-wide recursive search to discover symbols. Use targeted `rg` only for literals, CSS, localization, configuration, assets or when the graph is insufficient.
+- Read only task-relevant ranges. Do not inspect `.git`, `.codegraph`, `.wrangler`, `node_modules`, `dist`, generated output, binary assets or `package-lock.json` unless required.
+- Keep tool output, plans and reports concise; prefer exact paths, symbols, commands and evidence.
 
-## Project
+## Project constraints
 
-- Frontend: React 19, TypeScript and Vite in `src/`.
-- Backend: Cloudflare Worker and Durable Objects in `worker/`.
-- Shared contracts and game data are in `shared/`.
-- Static and binary assets are in `public/`.
-- Deployed Durable Object state, API payloads and route names are compatibility contracts.
+- React, TypeScript and Vite client code is in `src/`; Cloudflare Worker and Durable Objects are in `worker/`; shared contracts are in `shared/`.
+- Durable Object state, bindings, API routes and payloads are compatibility contracts.
+- Make the smallest coherent change; avoid unrelated refactors, renames and formatting changes.
+- Find all consumers before changing shared types, game rules or API contracts, and keep client and Worker behavior synchronized.
+- Never commit secrets, tokens, Cloudflare identifiers or local environment values.
 
-## Change discipline
+## Style
 
-- Make the smallest coherent change that solves the stated problem.
-- Do not perform unrelated refactors, renames or formatting changes.
-- Find all consumers before changing shared types, game rules or API contracts.
-- Keep client and Worker behavior synchronized when shared game state changes.
-- Never commit secrets, Cloudflare identifiers, tokens or local environment values.
-
-## TypeScript style
-
-- Preserve four-space indentation and the existing compact formatting.
-- Keep short signatures, calls, conditions and object literals on one line while readable.
+- Preserve four-space indentation and compact formatting; keep short signatures, calls and conditions on one line while readable.
 - Prefer explicit domain types over `any`; do not hide type errors with broad assertions.
 
 ## Validation
@@ -44,10 +34,4 @@ npm run build
 Use `npm ci` when dependencies are missing or the lockfile changed. For Worker deployment changes also run `npm run deploy:dry`.
 Never claim a check passed unless it was executed; report the exact failing command and first actionable error.
 
-## Workflow
-
-1. Inspect with CodeGraph and targeted reads.
-2. Implement the minimal change.
-3. Review the Git diff.
-4. Run relevant validation.
-5. Record a handoff in `docs/ai/TASK.md` only when work continues in a new chat.
+For work continued in a new chat, copy and complete `docs/ai/TASK.md` instead of repeating repository exploration.
