@@ -14,7 +14,8 @@
     "deploy:dry": "npm run build && wrangler deploy --dry-run",
     "test:rules": "node scripts/game-rules-smoke.mjs",
     "typecheck": "tsc -b",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "ai:context": "node scripts/ai-context-audit.mjs"
   },
   "dependencies": {
     "react": "19.2.8",
