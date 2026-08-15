@@ -1,0 +1,49 @@
+.battle-token > span,
+.placed-order > span,
+.mini-token {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+.battle-token > span {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+.placed-order > span {
+  width: 30px;
+  height: 30px;
+}
+
+.mini-token {
+  background-size: 76%;
+}
+
+.battle-token-army > span, .placed-order-army > span, .mini-token-army { background-image: url('/assets/tokens/army.svg'); }
+.battle-token-fleet > span, .placed-order-fleet > span, .mini-token-fleet { background-image: url('/assets/tokens/fleet.svg'); }
+.battle-token-shinobi > span, .placed-order-shinobi > span, .mini-token-shinobi { background-image: url('/assets/tokens/shinobi.svg'); }
+.battle-token-blessing > span, .placed-order-blessing > span, .mini-token-blessing { background-image: url('/assets/tokens/blessing.svg'); }
+.battle-token-diplomacy > span, .placed-order-diplomacy > span, .mini-token-diplomacy { background-image: url('/assets/tokens/diplomacy.svg'); }
+.battle-token-raid > span, .placed-order-raid > span, .mini-token-raid { background-image: url('/assets/tokens/raid.svg'); }
+.battle-token-blank > span, .placed-order-blank > span, .mini-token-blank { background-image: url('/assets/tokens/blank.svg'); }
+
+/* Keep the hidden face deliberately unreadable. */
+.placed-order-hidden > span {
+  width: auto;
+  height: auto;
+  background-image: none;
+  color: #fff0c9 !important;
+}
+
+/* Slightly enlarge the illustrated face while preserving strength badges and hit areas. */
+.battle-token {
+  background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.16), transparent 24%), linear-gradient(145deg,#5e4937,#21150f 72%);
+}
+
+.placed-order:not(.placed-order-hidden) {
+  background: radial-gradient(circle at 32% 27%, rgba(255,255,255,.24), transparent 25%), linear-gradient(145deg,color-mix(in srgb,var(--marker-color) 78%,#2c1a10),#120a07 82%);
+}
