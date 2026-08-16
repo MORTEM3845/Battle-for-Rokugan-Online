@@ -195,7 +195,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
         onPointerMove={handleProvincePointerMove}
         onPointerLeave={() => setProvinceTooltip(null)}>
         <div className="rotated-map" onClick={handleMapClick}>
-            <img className="rokugan-map-image" src="/assets/rokugan-map.webp" alt="Карта Рокугана" draggable={false} />
+            <img className="rokugan-map-image" src="/assets/rokugan-map.png" alt="Карта Рокугана" draggable={false} />
 
             <ProvinceShapes ref={layerRef} />
 

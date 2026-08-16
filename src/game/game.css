@@ -353,7 +353,16 @@
     transform: rotate(90deg);
     transform-origin: center;
 }
-.rokugan-map-image { width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; }
+.rokugan-map-image {
+    position: absolute;
+    top: 16.6667%;
+    left: -25%;
+    width: 150%;
+    height: 66.6667%;
+    display: block;
+    transform: rotate(-90deg);
+    user-select: none;
+}
 .province-layer, .map-markers { position: absolute; inset: 0; }
 .province-layer { z-index: 2; }
 .map-markers { z-index: 3; pointer-events: none; }
