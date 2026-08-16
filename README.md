@@ -1,7 +1,7 @@
 # Battle for Rokugan Online
 
 <p align="center">
-  <img src="./public/assets/rokugan-map.webp" alt="Карта Рокугана" width="900">
+  <img src="./public/assets/rokugan-map.png" alt="Карта Рокугана" width="900">
 </p>
 
 <p align="center">

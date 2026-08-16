@@ -1,34 +1,56 @@
-# Design QA — tabletop paper game board
+**Source visual truth**
 
-- Source visual truth: `C:/Users/tomko/AppData/Local/Temp/codex-clipboard-41087494-e80b-4513-a67e-a24b65f3f545.png`
-- Implementation screenshot: `D:/coding/Battle For Rakugan Online/Battle-for-Rokugan-Online/implementation-tabletop.png`
-- Combined comparison evidence: `D:/coding/Battle For Rakugan Online/Battle-for-Rokugan-Online/design-comparison.png`
-- Viewport: desktop in-app browser, game setup state.
-- Source pixels: 1278 × 937. Implementation pixels: 1265 × 764. Both are browser captures at CSS density 1; comparison preserves each capture's native density and places them vertically.
-- State: five-player game, initial setup; the bottom rack is visible. No console warnings or errors were recorded.
+- `C:\Users\tomko\AppData\Local\Temp\codex-clipboard-b77fbe99-eb39-41e9-9ae8-55a2ad4dc837.png`
+- Source pixels: 1296 × 929.
+- Intended scope: background, surrounding chrome, panel surfaces, borders, hierarchy, and overall flat 2D art direction. Map artwork, tokens, markers, and game logic are intentionally excluded.
 
-## Findings
+**Implementation evidence**
 
-- No actionable P0/P1/P2 mismatches for the requested direction.
-- The implementation intentionally retains the existing Rokugan map, game data, and placement flow. It now matches the reference's key visual language: paper panels, dark tabletop surround, wood-framed map, clan medallions, and a persistent personal rack.
-- Numeric token strength remains live UI data rather than art: `BattleToken` renders `token.strength` in a `<b>` badge. The same badge treatment was applied to placed orders.
+- Browser screenshot: `D:\coding\Battle For Rakugan Online\Battle-for-Rokugan-Online\design-implementation-final.png`
+- Combined 1:1 comparison: `D:\coding\Battle For Rakugan Online\Battle-for-Rokugan-Online\design-comparison-final.png`
+- Viewport: 1296 × 929 CSS px.
+- Implementation pixels: 1296 × 929 at device scale 1.
+- Density normalization: none required; source and implementation are equal pixel dimensions.
+- State: initial control-token placement with the current-player instruction banner visible. The source is a later placement state, so token/card contents are not used as fidelity criteria.
 
-## Required fidelity surfaces
+**Full-view comparison evidence**
 
-- Fonts and typography: serif hierarchy and compact tactical labels are retained; paper panels use dark ink text for contrast.
-- Spacing and layout rhythm: top player strip, central board + right instruction rail, and bottom private rack remain aligned at desktop width.
-- Colors and visual tokens: warm washi paper, sepia ink, dark wood/table background, and clan-colored medallions are consistent.
-- Image quality and asset fidelity: the game uses the existing high-detail Rokugan map and a generated washi-paper texture at `public/assets/ui/washi-paper-texture.png`; no placeholder asset replaces a required visual.
-- Copy and content: existing game copy and controls remain unchanged.
+- The implementation keeps the reference's large map / narrow right rail / compact top HUD / bottom private rack proportions.
+- The generated sumi-washi background is visible only around the interface perimeter and stays quiet behind the board.
+- Panel treatment matches the requested flatter direction: near-black surfaces, thin antique-gold keylines, restrained shadows, and square-to-small radii.
+- The second pass moved audio and language controls away from the player HUD and removed the pulsing/gradient-heavy turn-banner treatment.
 
-## Comparison history
+**Focused region comparison evidence**
 
-1. Applied paper-panel, framed-board, medallion, and numeric-badge styling.
-2. Captured and compared the reference and browser-rendered setup screen in `design-comparison.png`.
-3. Confirmed the layout and visual direction; no P0/P1/P2 correction was required.
+- No additional crop was required: the requested changes concern large, fully legible regions (top HUD, right rail, bottom rack, and outer background) shown at 1:1 in the combined comparison. Small token details were explicitly out of scope.
 
-## Follow-up polish
+**Required fidelity surfaces**
 
-- [P3] Replace the remaining text-based tactical symbols with a bespoke icon set if a fully illustrated token face is desired.
+- Fonts and typography: Mincho/Georgia display treatment is used for major headings and labels; compact sans-serif remains for utility copy. Weight, wrapping, hierarchy, and contrast are readable at 1296 px.
+- Spacing and layout rhythm: header, map, rail, and rack align to a consistent 8–10 px gap system. No horizontal or vertical viewport overflow was detected (`1296 × 929` client and scroll dimensions match).
+- Colors and visual tokens: charcoal, soot brown, muted vermilion, and antique gold align with the reference. State colors and clan accents remain intact.
+- Image quality and asset fidelity: the new 1672 × 936 generated backdrop is used at cover size with a quiet center and detailed perimeter; the existing map and all game-piece assets remain unchanged.
+- Copy and content: existing Russian game copy is preserved. The implementation screenshot uses setup-state copy instead of the reference's later-round copy by design.
+
+**Findings**
+
+- No actionable P0/P1/P2 mismatches remain within the requested scope.
+
+**Comparison history**
+
+- Pass 1 — P2: fixed audio/language tools overlapped the last player cards in the top HUD, and the current-turn banner retained a heavier dimensional treatment.
+- Fix: moved those tools to the quiet lower-left background area; replaced the banner with a flat opaque panel, thin border, restrained shadow, and no pulse animation.
+- Pass 2 evidence: `design-implementation-final.png` and `design-comparison-final.png`; HUD content is unobstructed, the panel language is consistently flat, and no new overflow appeared.
+
+**Interaction and runtime checks**
+
+- Tested creating a room, adding four bots, selecting a clan, marking ready, starting the match, choosing a secret objective, and loading the setup board.
+- Browser console warnings/errors: none.
+- Production build: passed.
+- Game-rules smoke test: passed.
+
+**Follow-up Polish**
+
+- P3: the current-turn banner intentionally remains centered over the upper map edge for visibility; it can be relocated into the right rail in a later layout iteration if a quieter board surface is preferred.
 
 final result: passed

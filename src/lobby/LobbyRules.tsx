@@ -1,25 +1,25 @@
 import { useLanguage } from '../i18n';
 
-type RuleToken = { symbol: string; name: string; value: string; text: string };
+type RuleToken = { symbol: string; name: string; value: string; text: string[] };
 
 const RULE_TOKENS_RU: RuleToken[] = [
-    { symbol: 'A', name: 'Армия', value: '1–5', text: 'Сражается за сухопутную границу или свою провинцию.' },
-    { symbol: 'F', name: 'Флот', value: '1–2', text: 'Сражается за морскую границу или прибрежную провинцию.' },
-    { symbol: 'S', name: 'Синоби', value: '1–2', text: 'Может вступить в бой за любую провинцию.' },
-    { symbol: '+', name: 'Благословение', value: '+1 / +2', text: 'Усиливает свой боевой жетон и защищает его от эффектов.' },
-    { symbol: 'D', name: 'Дипломатия', value: '—', text: 'Укрепляет вашу провинцию: добавляет жетон контроля.' },
-    { symbol: 'R', name: 'Погром', value: '—', text: 'Выжигает чужую или ничейную провинцию, если рядом есть ваше владение или синоби.' },
-    { symbol: '?', name: 'Пустой', value: 'блеф', text: 'Создаёт ложный приказ и возвращается в руку после вскрытия.' }
+    { symbol: 'A', name: 'Армия', value: '1–5', text: ['Атакует через сухопутную границу из подконтрольной провинции.', 'Защищает любую вашу провинцию, в том числе прибрежную.'] },
+    { symbol: 'F', name: 'Флот', value: '1–2', text: ['Атакует прибрежную провинцию с морской границы.', 'Защищает только вашу прибрежную провинцию.'] },
+    { symbol: 'S', name: 'Синоби', value: '1–2', text: ['Размещается в центре любой провинции.', 'В своей провинции защищает, во вражеской — атакует.'] },
+    { symbol: '+', name: 'Благословение', value: '+1 / +2', text: ['Кладётся лицом вверх на ваш закрытый жетон армии, флота или синоби.', 'Добавляет силу в бою и защищает этот жетон от карт и клановых способностей.'] },
+    { symbol: 'D', name: 'Дипломатия', value: '—', text: ['Размещается в вашей провинции. При исполнении убирает приказы у неё и на её границах.', 'Провинция становится мирной: её и её границы нельзя выбирать для новых приказов.'] },
+    { symbol: 'R', name: 'Погром', value: '—', text: ['Размещается в чужой или ничейной провинции.', 'Сработает, если там есть ваш синоби или рядом есть ваше владение: снимает контроль и приказы, оставляя выжженную землю.'] },
+    { symbol: '?', name: 'Пустой', value: 'блеф', text: ['Размещается как любой жетон, кроме благословения, чтобы скрыть ваши намерения.', 'После вскрытия возвращается в актив, а не в сброс.'] }
 ];
 
 const RULE_TOKENS_EN: RuleToken[] = [
-    { symbol: 'A', name: 'Army', value: '1–5', text: 'Fights across a land border or in one of your provinces.' },
-    { symbol: 'F', name: 'Fleet', value: '1–2', text: 'Fights across a sea border or in a coastal province.' },
-    { symbol: 'S', name: 'Shinobi', value: '1–2', text: 'Can join a battle for any province.' },
-    { symbol: '+', name: 'Blessing', value: '+1 / +2', text: 'Strengthens your combat order and protects it from effects.' },
-    { symbol: 'D', name: 'Diplomacy', value: '—', text: 'Fortifies your province by adding a control token.' },
-    { symbol: 'R', name: 'Raid', value: '—', text: 'Scorches an enemy or neutral province when supported by an adjacent holding or shinobi.' },
-    { symbol: '?', name: 'Blank', value: 'bluff', text: 'Creates a false order and returns to your hand after reveal.' }
+    { symbol: 'A', name: 'Army', value: '1–5', text: ['Attacks across a land border from a province you control.', 'Defends any of your provinces, including a coastal one.'] },
+    { symbol: 'F', name: 'Fleet', value: '1–2', text: ['Attacks a coastal province from a sea border.', 'Defends only a coastal province you control.'] },
+    { symbol: 'S', name: 'Shinobi', value: '1–2', text: ['Placed in the centre of any province.', 'It defends your province or attacks an enemy province.'] },
+    { symbol: '+', name: 'Blessing', value: '+1 / +2', text: ['Placed face up on your facedown Army, Fleet, or Shinobi order.', 'Adds strength in battle and protects that order from cards and clan abilities.'] },
+    { symbol: 'D', name: 'Diplomacy', value: '—', text: ['Placed in a province you control. On resolution, it removes orders in and around that province.', 'The province becomes peaceful: it and its borders cannot receive new orders.'] },
+    { symbol: 'R', name: 'Raid', value: '—', text: ['Placed in an enemy or neutral province.', 'It works with your Shinobi there or an adjacent holding: control and orders are removed, leaving scorched land.'] },
+    { symbol: '?', name: 'Blank', value: 'bluff', text: ['Placed like any order except a Blessing to conceal your plans.', 'After reveal, it returns to your active supply instead of the discard.'] }
 ];
 
 export function LobbyRules() {
@@ -59,7 +59,7 @@ export function LobbyRules() {
                     <div><span>{ru ? 'ВАШ ЗАПАС' : 'YOUR SUPPLY'}</span><h3>{ru ? 'Жетоны приказов' : 'Order tokens'}</h3></div>
                     <div className="rules-token-grid">{tokens.map(token => <article className="rules-token" key={token.name}>
                         <span className="rules-token-symbol" aria-hidden="true">{token.symbol}</span>
-                        <div><b>{token.name}</b><em>{token.value}</em><p>{token.text}</p></div>
+                        <div><b>{token.name}</b><em>{token.value}</em>{token.text.map(line => <p key={line}>{line}</p>)}</div>
                     </article>)}</div>
                 </div>
             </div>

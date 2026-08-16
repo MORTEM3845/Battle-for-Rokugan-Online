@@ -24,6 +24,15 @@ export function roomCodeFromPath(): string | null {
 }
 
 export function navigate(path: string): void {
-    history.pushState({}, '', path);
+    const target = new URL(path, location.origin);
+    const current = new URL(location.href);
+
+    for (const key of ['tokenLab', 'tokenStyle']) {
+        const value = current.searchParams.get(key);
+        if (value && !target.searchParams.has(key))
+            target.searchParams.set(key, value);
+    }
+
+    history.pushState({}, '', `${target.pathname}${target.search}${target.hash}`);
     dispatchEvent(new PopStateEvent('popstate'));
 }

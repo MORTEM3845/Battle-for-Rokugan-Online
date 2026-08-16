@@ -13,6 +13,21 @@ import { PlayerRack } from './rack/PlayerRack';
 import type { SelectedClanAction } from './types';
 import './game.css';
 
+type ControlTokenStyle = 'paper' | 'bone' | 'lacquer';
+
+const CONTROL_TOKEN_STYLES: { id: ControlTokenStyle; label: string }[] = [
+    { id: 'paper', label: 'Бумага' },
+    { id: 'bone', label: 'Кость' },
+    { id: 'lacquer', label: 'Лак' }
+];
+
+function initialControlTokenStyle(): ControlTokenStyle {
+    if (typeof window === 'undefined')
+        return 'paper';
+    const requested = new URLSearchParams(window.location.search).get('tokenStyle');
+    return CONTROL_TOKEN_STYLES.some(style => style.id === requested) ? requested as ControlTokenStyle : 'paper';
+}
+
 interface GameBoardProps {
     room: RoomState;
     currentPlayerId: string;
@@ -55,6 +70,9 @@ export function GameBoard(props: GameBoardProps) {
     const [unicornOrderIds, setUnicornOrderIds] = useState<string[]>([]);
     const [actionNotice, setActionNotice] = useState<string | null>(null);
     const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
+    const [controlTokenStyle, setControlTokenStyle] = useState<ControlTokenStyle>(initialControlTokenStyle);
+    const [tokenLabEnabled] = useState(() => typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('tokenLab') === '1');
     const seenLogIds = useRef(new Set<string>());
     const logsInitialized = useRef(false);
 
@@ -187,8 +205,23 @@ export function GameBoard(props: GameBoardProps) {
         return <SecretObjectivePicker room={room} game={game} busy={busy} error={error}
             currentPlayer={currentPlayer} onChoose={onChooseSecretObjective} />;
 
-    return <main className="game-screen">
+    function selectControlTokenStyle(style: ControlTokenStyle) {
+        setControlTokenStyle(style);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tokenStyle', style);
+        window.history.replaceState(null, '', url);
+    }
+
+    return <main className={`game-screen token-style-${controlTokenStyle}`}>
         <GameHud room={room} currentPlayerId={currentPlayerId} onPlayerHover={setHoveredPlayerId} />
+
+        {tokenLabEnabled && <aside className="token-style-lab" aria-label="Варианты жетона контроля">
+            <span>Жетоны 32 px</span>
+            {CONTROL_TOKEN_STYLES.map(style => <button key={style.id}
+                className={controlTokenStyle === style.id ? 'is-active' : ''}
+                aria-pressed={controlTokenStyle === style.id}
+                onClick={() => selectControlTokenStyle(style.id)}>{style.label}</button>)}
+        </aside>}
 
         <section className="game-stage" aria-label="Игровой стол">
             <div className="map-frame">

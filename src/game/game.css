@@ -335,7 +335,14 @@
     background: linear-gradient(135deg, #22150f, #6f4326 2%, #22140d 6%, #160d09 94%, #7f4b28);
     box-shadow: 0 24px 55px rgba(0, 0, 0, .65), 0 0 0 4px rgba(17, 10, 7, .72), inset 0 0 0 1px rgba(245, 205, 143, .16);
 }
-.province-map { position: relative; width: 100%; overflow: hidden; border-radius: 4px; background: #d6c59d; }
+.province-map {
+    --control-token-size: 32px;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #d6c59d;
+}
 .landscape-map {
     width: min(100%, calc(150vh - 360px));
     aspect-ratio: 3 / 2;
@@ -397,24 +404,29 @@
     pointer-events: auto;
 }
 .control-marker {
-    width: 25px;
-    height: 25px;
+    width: var(--control-token-size);
+    height: var(--control-token-size);
     display: grid;
     place-items: center;
-    border: 2px solid color-mix(in srgb, var(--marker-color) 66%, #f8e7bf);
-    border-radius: 4px;
-    color: #fff5df;
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, .16), transparent 44%),
-        color-mix(in srgb, var(--marker-color) 82%, #160e0b);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, .76), inset 0 0 0 2px rgba(19, 11, 8, .34);
-    font-size: 11px;
-    font-weight: 900;
+    border: 0;
+    border-radius: 0;
+    color: #49392c;
+    background: var(--control-token-art) center / 100% 100% no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(41, 25, 16, .55));
+    box-shadow: none;
     transform: translate(-50%, -50%) rotate(-90deg);
-    transition: width .15s ease, height .15s ease, box-shadow .15s ease;
+    transition: transform .15s ease, box-shadow .15s ease;
     pointer-events: none;
 }
-.control-marker.is-highlighted { width: 34px; height: 34px; box-shadow: 0 0 14px 5px var(--marker-color), 0 4px 9px #000; }
+.control-marker-mon {
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+    transform: rotate(90deg);
+}
+.control-marker.is-highlighted {
+    filter: drop-shadow(0 0 3px #fff1bd) drop-shadow(0 0 4px var(--marker-color));
+}
 .defense-marker, .special-marker {
     z-index: 8;
     display: flex;
@@ -953,12 +965,16 @@
     flex: 0 0 auto;
     display: grid;
     place-items: center;
-    border: 3px solid color-mix(in srgb, var(--clan-accent) 65%, #f4e0b7);
+    border: 2px solid color-mix(in srgb, var(--clan-accent) 46%, #ad6543);
     border-radius: 7px;
-    color: #fff1d8;
-    background: color-mix(in srgb, var(--clan-accent) 75%, #1a100c);
-    box-shadow: 0 5px 12px rgba(0, 0, 0, .55), inset 0 0 0 3px rgba(0, 0, 0, .2);
-    font: 23px serif;
+    color: #49392c;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .56), transparent 52%), #f3e7cd;
+    box-shadow: 0 2px 5px rgba(41, 25, 16, .4), inset 0 0 0 1px rgba(255, 252, 229, .7);
+}
+.control-token-sample-mon {
+    width: 78%;
+    height: 78%;
+    object-fit: contain;
 }
 .action-card-hand { display: flex; align-items: center; gap: 5px; padding-right: 3px; border-right: 1px solid rgba(210, 170, 111, .18); }
 .action-card {
@@ -1223,7 +1239,6 @@
 .battle-token-raid { border-color: #ba6237; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.38), transparent 22%), radial-gradient(circle, #bd7048, #7b3e29 58%, #442219 100%); }
 .battle-token-blank { border-color: #8b8275; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.34), transparent 22%), radial-gradient(circle, #776f65, #4c453e 58%, #292621 100%); }
 .battle-token.is-selected { outline-color: rgba(178, 86, 57, .72); box-shadow: 0 0 0 3px #f4dc96, 0 9px 18px rgba(0,0,0,.62), 0 0 18px #d1784f; }
-.control-marker { border-radius: 50%; border-width: 3px; box-shadow: 0 0 0 2px #34271d, 0 4px 8px rgba(0, 0, 0, .7), inset 0 0 0 2px rgba(255, 235, 178, .22); }
 .placed-order { width: 50px; height: 50px; border-radius: 50%; clip-path: none; }
 .placed-order b { right: -5px; bottom: -5px; transform: rotate(var(--token-counter-angle, 0deg)); }
 
@@ -1245,3 +1260,47 @@
 .rack-note span { font-size: 11px; }
 .empty-hand { font-size: 12px; }
 @media (max-width: 1000px) { .game-hud { gap: 5px; } .hud-player { border: 1px solid var(--paper-line); } }
+
+/* Compact board workspace and the in-game control-token comparison lab. */
+.game-screen {
+    --control-token-art: url('/assets/tokens/control/paper.png');
+}
+.game-screen.token-style-bone { --control-token-art: url('/assets/tokens/control/bone.png'); }
+.game-screen.token-style-lacquer { --control-token-art: url('/assets/tokens/control/lacquer.png'); }
+.token-style-lacquer .control-marker-mon { filter: brightness(1.55) saturate(.9) drop-shadow(0 1px 1px #1c0e08); }
+.control-token-sample {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 0;
+    background: var(--control-token-art) center / 100% 100% no-repeat;
+    box-shadow: none;
+    filter: drop-shadow(0 1px 1px rgba(41, 25, 16, .45));
+}
+.control-token-sample-mon { width: 88%; height: 88%; }
+.token-style-lacquer .control-token-sample-mon { filter: brightness(1.55) saturate(.9) drop-shadow(0 1px 1px #1c0e08); }
+
+.token-style-lab {
+    position: fixed;
+    top: 62px;
+    right: 12px;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid rgba(128, 101, 69, .8);
+    border-radius: 5px;
+    background: rgba(25, 17, 12, .92);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .42);
+}
+.token-style-lab span { padding: 0 5px; color: #d8c292; font-size: 9px; }
+.token-style-lab button {
+    padding: 5px 8px;
+    border: 1px solid #6d5942;
+    border-radius: 3px;
+    color: #bba88a;
+    background: #241b14;
+    font-size: 9px;
+}
+.token-style-lab button.is-active { border-color: #d3ad64; color: #2f2115; background: #ead9aa; }

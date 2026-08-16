@@ -68,7 +68,7 @@ export function HomePage() {
 
             <figure className="home-map-preview">
                 <div className="map-glow" />
-                <img src="/assets/rokugan-map.webp" alt={t('home.mapCaption')} />
+                <img src="/assets/rokugan-map.png" alt={t('home.mapCaption')} />
                 <figcaption><span>{t('home.mapKicker')}</span><b>{t('home.mapCaption')}</b></figcaption>
             </figure>
         </section>

@@ -207,3 +207,350 @@
     .detailed-clan-grid { grid-template-columns: 1fr; }
     .prominent-turn-banner { grid-template-columns: auto 1fr 30px; }
 }
+
+/* Flat sumi-e game-table skin. Game pieces and map artwork intentionally stay untouched. */
+.game-screen {
+    --sumi-panel: rgba(17, 16, 14, .96);
+    --sumi-panel-soft: rgba(25, 23, 19, .94);
+    --sumi-line: rgba(177, 135, 72, .56);
+    --sumi-line-soft: rgba(177, 135, 72, .24);
+    --sumi-gold: #c9a66b;
+    --sumi-gold-bright: #ead2a0;
+    --sumi-muted: #aa9a82;
+    min-height: 100vh;
+    padding: 16px clamp(12px, 1.55vw, 26px) 26px;
+    background-color: #11100e;
+    background-image: url('/assets/ui/rokugan-sumi-backdrop.png');
+    background-position: center top;
+    background-size: cover;
+    background-attachment: fixed;
+    box-shadow: inset 0 0 120px rgba(0, 0, 0, .42);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.game-screen .game-hud,
+.game-screen .phase-card,
+.game-screen .game-log,
+.game-screen .private-rack {
+    border-color: var(--sumi-line);
+    border-radius: 4px;
+    background: var(--sumi-panel);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(231, 204, 147, .055);
+    backdrop-filter: blur(4px);
+}
+
+.game-screen .game-hud {
+    min-height: 72px;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+}
+
+.game-screen .first-player-banner,
+.game-screen .hud-player,
+.game-screen .token-inventory > summary,
+.game-screen .setup-progress span,
+.game-screen .reveal-readiness span,
+.game-screen .clan-action-panel {
+    border-color: var(--sumi-line-soft);
+    border-radius: 3px;
+    background: rgba(255, 248, 225, .025);
+    box-shadow: none;
+}
+
+.game-screen .first-player-banner {
+    min-height: 50px;
+    padding: 8px 12px;
+    border-left-color: var(--sumi-gold);
+}
+
+.game-screen .hud-player {
+    min-height: 50px;
+    padding: 7px 8px;
+    box-shadow: inset 2px 0 color-mix(in srgb, var(--clan-accent) 68%, transparent);
+}
+
+.game-screen .hud-player.is-active {
+    outline: 1px solid var(--sumi-gold);
+    background: color-mix(in srgb, var(--clan-accent) 9%, rgba(255, 248, 225, .035));
+    box-shadow: inset 3px 0 var(--clan-accent);
+}
+
+.game-screen .hud-player.is-current {
+    background: rgba(201, 166, 107, .075);
+}
+
+.game-screen .game-mon,
+.game-screen .clan-badge {
+    box-shadow: 0 0 0 2px rgba(201, 166, 107, .14);
+}
+
+.game-screen .round-summary p,
+.game-screen .first-player-banner b,
+.game-screen .hud-player-copy strong,
+.game-screen .turn-summary b,
+.game-screen .phase-card h2,
+.game-screen .game-log-title b,
+.game-screen .rack-player strong,
+.game-screen .rack-note strong {
+    color: var(--sumi-gold-bright);
+    font-family: "Yu Mincho", "Hiragino Mincho ProN", Georgia, serif;
+}
+
+.game-screen .first-player-banner small,
+.game-screen .round-summary strong,
+.game-screen .phase-kicker,
+.game-screen .game-log-title span,
+.game-screen .rack-player small {
+    color: #b7654b;
+}
+
+.game-screen .game-stage {
+    grid-template-columns: minmax(560px, 1fr) minmax(240px, 272px);
+    gap: 10px;
+}
+
+.game-screen .map-frame {
+    padding: 7px;
+    border: 1px solid var(--sumi-line);
+    border-radius: 3px;
+    background: #161410;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .48), 0 0 0 3px rgba(8, 8, 7, .72), inset 0 0 0 1px rgba(236, 211, 156, .1);
+}
+
+.game-screen .province-map {
+    border: 1px solid rgba(236, 211, 156, .16);
+    border-radius: 1px;
+}
+
+.game-screen .game-side-rail {
+    gap: 8px;
+}
+
+.game-screen .phase-card {
+    padding: 18px 16px;
+    border-top-color: var(--sumi-gold);
+}
+
+.game-screen .phase-card h2 {
+    margin: 7px 0 10px;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.game-screen .phase-card p,
+.game-screen .game-log-entries > p,
+.game-screen .log-entry span,
+.game-screen .rack-note span {
+    color: var(--sumi-muted);
+}
+
+.game-screen .phase-action,
+.game-screen .copy-room-button {
+    border-color: rgba(201, 166, 107, .48);
+    border-radius: 3px;
+    color: #e3c994;
+    background: rgba(119, 72, 37, .24);
+    box-shadow: inset 0 0 0 1px rgba(238, 209, 151, .04);
+}
+
+.game-screen .phase-action:hover:not(:disabled),
+.game-screen .copy-room-button:hover:not(:disabled) {
+    border-color: var(--sumi-gold-bright);
+    background: rgba(140, 80, 41, .34);
+}
+
+.game-screen .game-log {
+    border-color: var(--sumi-line-soft);
+}
+
+.game-screen .game-log-title {
+    padding: 11px 12px 9px;
+    border-bottom-color: var(--sumi-line-soft);
+}
+
+.game-screen .log-entry {
+    border-top-color: rgba(201, 166, 107, .09);
+}
+
+.game-screen .log-entry small {
+    color: #806e56;
+}
+
+.game-screen .private-rack {
+    width: min(1500px, calc(100% - 16px));
+    min-height: 94px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-top-color: var(--sumi-gold);
+}
+
+.game-screen .objective-tab-handle {
+    border-color: var(--sumi-line);
+    border-bottom: 0;
+    border-radius: 3px 3px 0 0;
+    color: #2f2517;
+    background: #d2bd8b;
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, .35);
+}
+
+.game-screen .token-inventory > summary {
+    background: rgba(201, 166, 107, .045);
+}
+
+.game-screen .player-popover,
+.game-screen .token-ledger,
+.game-screen .objective-tab-card,
+.game-screen .action-result-toast {
+    border-radius: 4px;
+}
+
+.game-screen .turn-banner {
+    color: #8f816c;
+}
+
+body:has(.game-screen) .room-tools {
+    top: auto;
+    right: auto;
+    bottom: 18px;
+    left: 18px;
+}
+
+body:has(.game-screen) .ambient-player.compact-audio {
+    border-color: rgba(201, 166, 107, .5);
+    border-radius: 3px;
+    background: rgba(20, 18, 15, .96);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .42);
+}
+
+body:has(.game-screen) .prominent-turn-banner {
+    border-color: rgba(201, 166, 107, .7);
+    border-radius: 3px;
+    background: rgba(24, 21, 17, .97);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .48);
+    animation: none;
+}
+
+body:has(.game-screen) .prominent-turn-banner.is-yours {
+    border-color: #c98a52;
+    background: rgba(72, 36, 22, .97);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .52);
+    animation: none;
+}
+
+.room-chat.game .chat-fab,
+.room-chat .chat-fab {
+    border-color: rgba(201, 166, 107, .55);
+    border-radius: 3px;
+    background: rgba(20, 18, 15, .96);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .42);
+}
+
+@media (max-width: 1180px) {
+    .game-screen .game-stage { grid-template-columns: minmax(520px, 1fr) 230px; }
+    .game-screen .game-hud { grid-template-columns: minmax(180px, .65fr) minmax(130px, .4fr) minmax(360px, 1.7fr) auto; }
+}
+
+@media (max-width: 900px) {
+    .game-screen { background-attachment: scroll; }
+    .game-screen .game-stage { grid-template-columns: 1fr; }
+    .game-screen .game-side-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+    .game-screen .game-side-rail { grid-template-columns: 1fr; }
+    .game-screen .private-rack { border-radius: 3px; }
+    body:has(.game-screen) .room-tools { bottom: 10px; left: 10px; }
+}
+
+/* Desktop board workspace: the HUD, map and rack share one edge-to-edge grid. */
+@media (min-width: 921px) and (min-height: 650px) {
+    .game-screen {
+        height: 100dvh;
+        min-height: 650px;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .game-screen .game-hud {
+        width: 100%;
+        min-height: 54px;
+        gap: 0;
+        margin: 0;
+        padding: 2px 8px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+    }
+
+    .game-screen .round-summary,
+    .game-screen .first-player-banner,
+    .game-screen .hud-player,
+    .game-screen .copy-room-button { min-height: 48px; }
+
+    .game-screen .game-mon { width: 38px; height: 38px; font-size: 20px; }
+    .game-screen .round-summary p { font-size: 16px; }
+
+    .game-screen .game-stage {
+        width: 100%;
+        min-height: 0;
+        height: 100%;
+        grid-template-columns: minmax(0, 1fr) minmax(210px, 235px);
+        gap: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    .game-screen .map-frame {
+        min-width: 0;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border-radius: 0;
+        overflow: hidden;
+    }
+
+    .game-screen .landscape-map {
+        width: min(100%, calc((100dvh - 118px) * 1.5));
+        max-height: 100%;
+        margin: 0;
+    }
+
+    .game-screen .game-side-rail {
+        min-height: 0;
+        height: 100%;
+        gap: 0;
+        overflow-y: auto;
+        border-left: 1px solid var(--sumi-line);
+    }
+
+    .game-screen .phase-card {
+        min-height: 0;
+        padding: 12px;
+        border-width: 0 0 1px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .game-screen .phase-card h2 { margin: 3px 0 5px; font-size: 19px; }
+    .game-screen .phase-card p { font-size: 10px; line-height: 1.4; }
+    .game-screen .setup-progress { margin-top: 8px; }
+    .game-screen .game-log { border-width: 0; border-radius: 0; box-shadow: none; }
+
+    .game-screen .private-rack {
+        width: 100%;
+        min-height: 64px;
+        margin: 0;
+        padding: 5px 12px;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .game-screen .objective-tab { top: -31px; }
+}

@@ -5,7 +5,7 @@ import {
 import type { SelectedClanAction } from '../types';
 import { ClanBadge } from '../hud/PlayerIdentity';
 import { SecretObjectiveTab } from '../objectives/SecretObjectiveTab';
-import { CLAN_MON, TOKEN_INFO, clanStyle } from '../presentation';
+import { CLAN_MON_ASSET, TOKEN_INFO, clanStyle } from '../presentation';
 import { ActionCardHand } from './ActionCardHand';
 import { OrderToken } from './OrderToken';
 import { TokenInventory } from './TokenInventory';
@@ -46,7 +46,9 @@ export function PlayerRack(props: PlayerRackProps) {
         <TokenInventory rows={game.tokenPool} />
         <div className="token-hand">
             {game.phase === 'setup' && <div className="setup-control-prompt">
-                <span className="control-token-sample" style={clanStyle(currentPlayer)}>{currentPlayer.clanId ? CLAN_MON[currentPlayer.clanId] : '?'}</span>
+                <span className="control-token-sample" style={clanStyle(currentPlayer)}>{currentPlayer.clanId
+                    ? <img className="control-token-sample-mon" src={CLAN_MON_ASSET[currentPlayer.clanId]} alt="" />
+                    : '?'}</span>
                 <div><b>{currentStats.setupRemaining} жетонов контроля</b><small>{canPlaceControl
                     ? 'Нажмите на любую свободную провинцию'
                     : setupComplete ? 'Вся начальная армия размещена' : `Ожидайте ход игрока ${turnPlayer?.name ?? '—'}`}</small></div>
