@@ -13,8 +13,8 @@ try {
     const map = await vite.ssrLoadModule('/shared/map.ts');
     const { SECRET_OBJECTIVES } = await vite.ssrLoadModule('/shared/objectives.ts');
     const { CLAN_RULES } = await vite.ssrLoadModule('/shared/room.ts');
-    const northShadowlands = 'blackshadowlandsnorth_1_24';
-    const southShadowlands = 'blackshadowlandssouth_1_30';
+    const northShadowlands = 'blackshadowlandsnorth_province_1_29';
+    const southShadowlands = 'blackshadowlandssouth_province_1_30';
     const sharedBorder = map.LAND_BORDERS.find(border =>
         border.provinces.includes(northShadowlands) &&
         border.provinces.includes(southShadowlands)
@@ -145,22 +145,22 @@ try {
     }
 
     const connectedInThreeRegions = new Set([
-        'redscorpion_3_14',
-        'redscorpion_2_13',
-        'yellowlion_2_07',
-        'yellowlion_1_12',
-        'yellowlion_3_08',
-        'lightbluecrane_1_15'
+        'redscorpion_province_1_15',
+        'redscorpion_province_3_14',
+        'yellowlion_province_2_12',
+        'yellowlion_capital_2_10',
+        'greendragon_province_3_03',
+        'lightbluecrane_capital_2_16'
     ]);
     const connectedInFourRegions = new Set([
-        'purpleunicorn_2_09',
-        'redscorpion_3_14',
-        'redscorpion_2_13',
-        'yellowlion_2_07',
-        'yellowlion_1_12',
-        'lightbluecrane_1_15'
+        'purpleunicorn_province_1_08',
+        'redscorpion_province_1_15',
+        'redscorpion_province_3_14',
+        'yellowlion_province_2_12',
+        'yellowlion_capital_2_10',
+        'lightbluecrane_capital_2_16'
     ]);
-    assert.equal(roomObject.hasConnectedProvinceGroup(connectedInThreeRegions, 6, 3), true);
+    assert.equal(roomObject.hasConnectedProvinceGroup(connectedInThreeRegions, 6, 4), true);
     assert.equal(roomObject.hasConnectedProvinceGroup(connectedInFourRegions, 6, 3), false);
 
     const withFleet = createRaidFixture(true);

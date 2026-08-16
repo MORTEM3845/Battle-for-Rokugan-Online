@@ -30,36 +30,36 @@ interface ProvinceDefinition extends MapPoint {
  * with the Dragon capital kept as the starting province (`..._01`).
  */
 export const PROVINCES: ProvinceDefinition[] = [
-    { id: 'greendragon_1_01', legacyId: 'province-02', name: 'Столица клана Дракона', x: 526, y: 175 },
-    { id: 'greendragon_2_02', legacyId: 'province-01', name: 'Земли клана Дракона II', x: 237, y: 143 },
-    { id: 'orangephoenix_3_05', legacyId: 'province-03', name: 'Земли клана Феникса III', x: 645, y: 203 },
-    { id: 'orangephoenix_1_03', legacyId: 'province-04', name: 'Столица клана Феникса', x: 750, y: 180 },
-    { id: 'orangephoenix_2_04', legacyId: 'province-05', name: 'Земли клана Феникса II', x: 822, y: 161 },
-    { id: 'purpleunicorn_1_06', legacyId: 'province-06', name: 'Столица клана Единорога', x: 169, y: 264 },
-    { id: 'yellowlion_3_08', legacyId: 'province-07', name: 'Земли клана Льва III', x: 420, y: 361 },
-    { id: 'greendragon_3_08', legacyId: 'province-15', name: 'Земли клана Дракона III', x: 583, y: 388 },
-    { id: 'purpleunicorn_2_09', legacyId: 'province-18', name: 'Земли клана Единорога II', x: 148, y: 395 },
-    { id: 'purpleunicorn_3_10', legacyId: 'province-24', name: 'Земли клана Единорога III', x: 320, y: 414 },
-    { id: 'yellowlion_2_07', legacyId: 'province-08', name: 'Земли клана Льва II', x: 689, y: 463 },
-    { id: 'yellowlion_1_12', legacyId: 'province-29', name: 'Столица клана Льва', x: 548, y: 516 },
-    { id: 'redscorpion_2_13', legacyId: 'province-14', name: 'Земли клана Скорпиона II', x: 411, y: 539 },
-    { id: 'redscorpion_3_14', legacyId: 'province-13', name: 'Земли клана Скорпиона III', x: 240, y: 584 },
-    { id: 'lightbluecrane_1_15', legacyId: 'province-25', name: 'Столица клана Журавля', x: 669, y: 615 },
-    { id: 'redscorpion_1_16', legacyId: 'province-21', name: 'Столица клана Скорпиона', x: 481, y: 685 },
-    { id: 'graycrab_2_17', legacyId: 'province-26', name: 'Земли клана Краба II', x: 144, y: 702 },
-    { id: 'lightbluecrane_2_18', legacyId: 'province-09', name: 'Земли клана Журавля II', x: 654, y: 722 },
-    { id: 'graycrab_3_19', legacyId: 'province-10', name: 'Земли клана Краба III', x: 340, y: 776 },
-    { id: 'lightbluecrane_3_20', legacyId: 'province-30', name: 'Земли клана Журавля III', x: 489, y: 812 },
-    { id: 'graycrab_4_21', legacyId: 'province-19', name: 'Земли клана Краба IV', x: 300, y: 948 },
-    { id: 'goldcoast_1_22', legacyId: 'province-27', name: 'Золотое побережье I', x: 450, y: 964 },
-    { id: 'goldcoast_2_23', legacyId: 'province-20', name: 'Золотое побережье II', x: 575, y: 952 },
-    { id: 'blackshadowlandsnorth_1_24', legacyId: 'province-11', name: 'Северные Земли Теней', x: 72, y: 983 },
-    { id: 'lavenderislands_1_25', legacyId: 'province-22', name: 'Лавандовые острова I', x: 802, y: 1093 },
-    { id: 'graycrab_1_26', legacyId: 'province-23', name: 'Столица клана Краба', x: 330, y: 1148 },
-    { id: 'goldcoast_3_27', legacyId: 'province-12', name: 'Золотое побережье III', x: 428, y: 1184 },
-    { id: 'lavenderislands_2_28', legacyId: 'province-16', name: 'Лавандовые острова II', x: 683, y: 1248 },
-    { id: 'lavenderislands_3_29', legacyId: 'province-28', name: 'Лавандовые острова III', x: 808, y: 1231 },
-    { id: 'blackshadowlandssouth_1_30', legacyId: 'province-17', name: 'Южные Земли Теней', x: 169, y: 1301 }
+    { id: 'greendragon_province_1_02', legacyId: 'province-01', name: 'Земли клана Дракона', x: 237, y: 143 },
+    { id: 'greendragon_capital_2_01', legacyId: 'province-02', name: 'Столица клана Дракона', x: 526, y: 175 },
+    { id: 'orangephoenix_province_2_06', legacyId: 'province-03', name: 'Земли клана Феникса', x: 645, y: 203 },
+    { id: 'orangephoenix_capital_2_04', legacyId: 'province-04', name: 'Столица клана Феникса', x: 750, y: 180 },
+    { id: 'orangephoenix_province_1_05', legacyId: 'province-05', name: 'Земли клана Феникса', x: 822, y: 161 },
+    { id: 'purpleunicorn_capital_2_07', legacyId: 'province-06', name: 'Столица клана Единорога', x: 169, y: 264 },
+    { id: 'yellowlion_province_2_12', legacyId: 'province-07', name: 'Земли клана Льва', x: 420, y: 361 },
+    { id: 'yellowlion_province_2_11', legacyId: 'province-08', name: 'Земли клана Льва', x: 689, y: 463 },
+    { id: 'lightbluecrane_province_2_17', legacyId: 'province-09', name: 'Земли клана Журавля', x: 654, y: 722 },
+    { id: 'graycrab_province_3_21', legacyId: 'province-10', name: 'Земли клана Краба', x: 340, y: 776 },
+    { id: 'blackshadowlandsnorth_province_1_29', legacyId: 'province-11', name: 'Северные Земли Теней', x: 72, y: 983 },
+    { id: 'goldcoast_province_3_25', legacyId: 'province-12', name: 'Золотое побережье', x: 428, y: 1184 },
+    { id: 'redscorpion_province_1_15', legacyId: 'province-13', name: 'Земли клана Скорпиона', x: 240, y: 584 },
+    { id: 'redscorpion_province_3_14', legacyId: 'province-14', name: 'Земли клана Скорпиона', x: 411, y: 539 },
+    { id: 'greendragon_province_3_03', legacyId: 'province-15', name: 'Земли клана Дракона', x: 583, y: 388 },
+    { id: 'lavenderislands_province_1_27', legacyId: 'province-16', name: 'Лавандовые острова', x: 683, y: 1248 },
+    { id: 'blackshadowlandssouth_province_1_30', legacyId: 'province-17', name: 'Южные Земли Теней', x: 169, y: 1301 },
+    { id: 'purpleunicorn_province_1_08', legacyId: 'province-18', name: 'Земли клана Единорога', x: 148, y: 395 },
+    { id: 'graycrab_province_2_22', legacyId: 'province-19', name: 'Земли клана Краба', x: 300, y: 948 },
+    { id: 'goldcoast_province_2_24', legacyId: 'province-20', name: 'Золотое побережье', x: 575, y: 952 },
+    { id: 'redscorpion_capital_2_13', legacyId: 'province-21', name: 'Столица клана Скорпиона', x: 481, y: 685 },
+    { id: 'lavenderislands_province_2_26', legacyId: 'province-22', name: 'Лавандовые острова', x: 802, y: 1093 },
+    { id: 'graycrab_capital_2_19', legacyId: 'province-23', name: 'Столица клана Краба', x: 330, y: 1148 },
+    { id: 'purpleunicorn_province_3_09', legacyId: 'province-24', name: 'Земли клана Единорога', x: 320, y: 414 },
+    { id: 'lightbluecrane_capital_2_16', legacyId: 'province-25', name: 'Столица клана Журавля', x: 669, y: 615 },
+    { id: 'graycrab_province_1_20', legacyId: 'province-26', name: 'Земли клана Краба', x: 144, y: 702 },
+    { id: 'goldcoast_province_3_23', legacyId: 'province-27', name: 'Золотое побережье', x: 450, y: 964 },
+    { id: 'lavenderislands_province_1_28', legacyId: 'province-28', name: 'Лавандовые острова', x: 808, y: 1231 },
+    { id: 'yellowlion_capital_2_10', legacyId: 'province-29', name: 'Столица клана Льва', x: 548, y: 516 },
+    { id: 'lightbluecrane_province_3_18', legacyId: 'province-30', name: 'Земли клана Журавля', x: 489, y: 812 }
 ];
 
 export const PROVINCE_NAMES: Record<string, string> = Object.fromEntries(
@@ -101,7 +101,7 @@ const REGION_NAMES: Record<RegionId, string> = {
 };
 
 const provinceRegionId = (provinceId: string): RegionId =>
-    provinceId.replace(/_\d+_\d+$/, '') as RegionId;
+    provinceId.replace(/_(?:capital|province)_\d+_\d+$/, '') as RegionId;
 
 export const PROVINCE_REGIONS: Record<string, RegionId> = Object.fromEntries(
     PROVINCES.map(province => [province.id, provinceRegionId(province.id)])
@@ -118,50 +118,18 @@ export const REGIONS: RegionDefinition[] = (Object.keys(REGION_NAMES) as RegionI
  * Напечатанная на поле честь. Значения сверены с картой; у Земель Теней
  * звёзды остаются видимыми в подсказке, но в итоговый счёт не входят.
  */
-const PROVINCE_HONOR_OVERRIDES: Partial<Record<string, number>> = {
-    greendragon_1_01: 2,
-    greendragon_2_02: 1,
-    orangephoenix_3_05: 2,
-    orangephoenix_1_03: 2,
-    orangephoenix_2_04: 1,
-    purpleunicorn_1_06: 2,
-    yellowlion_3_08: 2,
-    greendragon_3_08: 3,
-    purpleunicorn_2_09: 1,
-    purpleunicorn_3_10: 3,
-    yellowlion_2_07: 2,
-    yellowlion_1_12: 2,
-    redscorpion_2_13: 3,
-    redscorpion_3_14: 1,
-    lightbluecrane_1_15: 2,
-    redscorpion_1_16: 2,
-    graycrab_2_17: 1,
-    lightbluecrane_2_18: 2,
-    graycrab_3_19: 3,
-    lightbluecrane_3_20: 3,
-    graycrab_4_21: 2,
-    goldcoast_1_22: 3,
-    goldcoast_2_23: 2,
-    blackshadowlandsnorth_1_24: 1,
-    lavenderislands_1_25: 2,
-    graycrab_1_26: 2,
-    goldcoast_3_27: 3,
-    lavenderislands_2_28: 1,
-    lavenderislands_3_29: 1,
-    blackshadowlandssouth_1_30: 1
-};
 export const PROVINCE_HONOR: Record<string, number> = Object.fromEntries(
-    PROVINCES.map(province => [province.id, PROVINCE_HONOR_OVERRIDES[province.id] ?? 1])
+    PROVINCES.map(province => [province.id, Number(province.id.match(/_(?:capital|province)_(\d)_/)?.[1] ?? 1)])
 );
 
 export const CLAN_CAPITALS: Record<ClanId, string> = {
-    crab: 'graycrab_1_26',
-    crane: 'lightbluecrane_1_15',
-    dragon: 'greendragon_1_01',
-    lion: 'yellowlion_1_12',
-    phoenix: 'orangephoenix_1_03',
-    scorpion: 'redscorpion_1_16',
-    unicorn: 'purpleunicorn_1_06'
+    crab: 'graycrab_capital_2_19',
+    crane: 'lightbluecrane_capital_2_16',
+    dragon: 'greendragon_capital_2_01',
+    lion: 'yellowlion_capital_2_10',
+    phoenix: 'orangephoenix_capital_2_04',
+    scorpion: 'redscorpion_capital_2_13',
+    unicorn: 'purpleunicorn_capital_2_07'
 };
 
 export const PROVINCE_BASE_DEFENSE: Record<string, number> = Object.fromEntries(
