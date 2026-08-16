@@ -5,81 +5,12 @@ import {
     PROVINCE_NAMES,
     SEA_BORDERS
 } from '../shared/map';
-import type { BattleTokenType, GameLogEntry, OrderTarget, ProvinceSpecial, RoomPlayer } from '../shared/room';
+import type { BattleTokenType, OrderTarget } from '../shared/room';
 import { RoomObject as BaseRoomObject } from './RoomObject';
-
-interface Env {
-    ROOMS: DurableObjectNamespace;
-}
-
-interface StoredPlayer extends RoomPlayer {
-    token: string;
-}
-
-interface StoredBattleToken {
-    id: string;
-    type: BattleTokenType;
-    strength: number | null;
-    isClanToken?: boolean;
-}
-
-interface StoredPlacedOrder {
-    id: string;
-    playerId: string;
-    token: StoredBattleToken;
-    target: OrderTarget;
-    movedByUnicorn?: boolean;
-}
-
-interface StoredPlayerGame {
-    hand: StoredBattleToken[];
-    stock: StoredBattleToken[];
-    discard: StoredBattleToken[];
-    setupRemaining: number;
-    roundPlacedCount: number;
-    actionCards: Record<'scout' | 'shugenja', number>;
-    scoutedOrderIds: string[];
-    secretObjectiveOptions: string[];
-    secretObjectiveId: string | null;
-    isRonin: boolean;
-    skipsPlacement: boolean;
-    clanAbilityUsed: boolean;
-    mustReturnToken: boolean;
-}
-
-interface StoredGame {
-    stage: 'setup' | 'rounds' | 'finished';
-    round: number;
-    phase: string;
-    turnPlayerId: string | null;
-    players: Record<string, StoredPlayerGame>;
-    provinces: Record<string, string | null>;
-    provinceSpecials: Record<string, ProvinceSpecial>;
-    readyPlayerIds: string[];
-    orders: StoredPlacedOrder[];
-    log: GameLogEntry[];
-}
-
-interface StoredRoom {
-    schemaVersion: number;
-    code: string;
-    status: 'lobby' | 'playing';
-    maxPlayers: number;
-    players: StoredPlayer[];
-    createdAt: string;
-    game: StoredGame | null;
-}
-
-class PatchError extends Error {
-    constructor(readonly status: number, message: string) {
-        super(message);
-    }
-}
-
-const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
-    status,
-    headers: { 'cache-control': 'no-store', 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff' }
-});
+import type { Env, StoredBattleToken, StoredGame, StoredPlacedOrder, StoredPlayer, StoredRoom } from './room/types';
+import { RoomRequestError as PatchError, jsonResponse as json } from './room/http';
+import { findPlayer, removeLobbyPlayer, requireHost, requirePlayer } from './room/lobby';
+import { hasAttachedBlessing, hasLandOrderInDirection, hasSeaBorderOrder } from './game/orderQueries';
 
 export class RoomObject extends BaseRoomObject {
     private patchQueue: Promise<void> = Promise.resolve();
@@ -120,17 +51,8 @@ export class RoomObject extends BaseRoomObject {
 
     private async handleKickPlayer(request: Request, playerId: string): Promise<Response> {
         const room = await this.patchRequireRoom();
-        if (room.status !== 'lobby')
-            throw new PatchError(400, 'Игроков можно исключать только до начала партии');
-
         const host = this.patchRequireHost(request, room);
-        const target = room.players.find(player => player.id === playerId);
-        if (!target)
-            throw new PatchError(404, 'Игрок не найден');
-        if (target.id === host.id || target.isHost)
-            throw new PatchError(400, 'Хозяин комнаты не может исключить себя');
-
-        room.players = room.players.filter(player => player.id !== playerId);
+        removeLobbyPlayer(room, host, playerId);
         await this.patchedState.storage.put('room', room);
         return super.fetch(new Request('https://room/state', { headers: request.headers }));
     }
@@ -262,8 +184,8 @@ export class RoomObject extends BaseRoomObject {
             const border = LAND_BORDERS.find(item => item.id === target.id);
             if (!border || !target.provinceId || !border.provinces.includes(target.provinceId))
                 return 'граница больше не соответствует цели атаки';
-            if (game.orders.some(candidate => candidate.target.kind === 'land-border' && candidate.target.id === target.id))
-                return 'на этой границе уже лежит другой приказ';
+            if (hasLandOrderInDirection(game, target.id, target.provinceId))
+                return 'в этом направлении через границу уже лежит другой приказ';
             const sourceId = border.provinces.find(id => id !== target.provinceId)!;
             if (token.type !== 'blank' && token.type !== 'army')
                 return 'этот тип жетона нельзя ставить на сухопутную границу';
@@ -277,7 +199,7 @@ export class RoomObject extends BaseRoomObject {
             const sea = SEA_BORDERS.find(item => item.id === target.id);
             if (!sea || sea.provinceId !== target.provinceId)
                 return 'морская граница больше не соответствует цели';
-            if (game.orders.some(candidate => candidate.target.kind === 'sea-border' && candidate.target.id === target.id))
+            if (hasSeaBorderOrder(game, target.id))
                 return 'на этой морской границе уже лежит другой приказ';
             if (token.type !== 'blank' && token.type !== 'fleet')
                 return 'этот тип жетона нельзя ставить на морскую границу';
@@ -300,22 +222,15 @@ export class RoomObject extends BaseRoomObject {
     }
 
     private patchRequireHost(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.patchRequirePlayer(request, room);
-        if (!player.isHost)
-            throw new PatchError(403, 'Это действие доступно только хозяину комнаты');
-        return player;
+        return requireHost(request, room);
     }
 
     private patchRequirePlayer(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.patchFindPlayer(request, room);
-        if (!player)
-            throw new PatchError(401, 'Сессия игрока не найдена');
-        return player;
+        return requirePlayer(request, room);
     }
 
     private patchFindPlayer(request: Request, room: StoredRoom): StoredPlayer | undefined {
-        const token = request.headers.get('x-player-token');
-        return room.players.find(player => player.token === token);
+        return findPlayer(request, room);
     }
 
     private async patchRequireRoom(): Promise<StoredRoom> {
@@ -326,7 +241,7 @@ export class RoomObject extends BaseRoomObject {
     }
 
     private patchHasBlessing(game: StoredGame, orderId: string): boolean {
-        return game.orders.some(order => order.token.type === 'blessing' && order.target.kind === 'order' && order.target.id === orderId);
+        return hasAttachedBlessing(game, orderId);
     }
 
     private patchAddLog(game: StoredGame, message: string, playerId?: string): void {

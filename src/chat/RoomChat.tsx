@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ChatMessage } from '../../shared/chat';
 import type { PlayerSession, RoomPlayer } from '../../shared/room';
-import { roomApi } from '../api';
+import { chatApi } from './api';
 import { useLanguage } from '../i18n';
+import './chat.css';
 
 interface RoomChatProps {
     session: PlayerSession;
@@ -28,7 +29,7 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
 
         const refresh = async () => {
             try {
-                const state = await roomApi.getChat(session.roomCode);
+                const state = await chatApi.get(session.roomCode);
                 if (!active)
                     return;
                 setMessages(state.messages);
@@ -72,7 +73,7 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
         try {
             setSending(true);
             setError('');
-            const state = await roomApi.sendChat(session, currentPlayer.name, message);
+            const state = await chatApi.send(session, currentPlayer.name, message);
             setMessages(state.messages);
             previousCount.current = state.messages.length;
             setText('');

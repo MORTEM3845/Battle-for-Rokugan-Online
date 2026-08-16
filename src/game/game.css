@@ -529,6 +529,39 @@
     font: 9px sans-serif;
     transform: rotate(var(--token-counter-angle, 0deg));
 }
+.placed-order.is-blessed {
+    box-shadow:
+        0 5px 12px 3px rgba(0, 0, 0, .88),
+        0 0 0 2px rgba(255, 225, 165, .24),
+        0 0 12px rgba(231, 188, 79, .46),
+        inset 0 0 0 3px rgba(255, 238, 175, .18);
+}
+.blessing-seal {
+    position: absolute;
+    z-index: 2;
+    top: -7px;
+    right: -8px;
+    width: 26px;
+    height: 22px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    border: 1px solid #ffe5a1;
+    border-radius: 12px;
+    color: #3d240b;
+    background: linear-gradient(145deg, #fff3c5, #d79e39);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .62);
+    font: 8px Georgia, serif;
+    transform: rotate(var(--token-counter-angle, 0deg)) !important;
+}
+.blessing-seal > span {
+    display: inline !important;
+    transform: none !important;
+    font-size: 12px;
+    line-height: 1;
+}
+.blessing-seal strong { font: 800 8px/1 sans-serif; }
 .placed-order > i {
     position: absolute;
     top: 9px;
@@ -680,27 +713,6 @@
 .clan-action-panel span { color: #bca9c8; font-size: 10px; line-height: 1.4; }
 .clan-action-panel .phase-action { grid-column: auto; grid-row: auto; margin-top: 4px; }
 
-.game-log {
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid rgba(194, 150, 105, .22);
-    border-radius: 12px;
-    background: rgba(18, 12, 9, .91);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, .34);
-}
-.game-log-title { display: grid; padding: 10px 11px 8px; border-bottom: 1px solid rgba(194, 150, 105, .14); }
-.game-log-title span { color: #96634f; font-size: 7px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
-.game-log-title b { color: #d9c29d; font: 14px Georgia, serif; }
-.game-log-entries { max-height: 250px; overflow-y: auto; overscroll-behavior: contain; }
-.game-log-entries > p { margin: 0; padding: 12px; color: #75675c; font-size: 9px; line-height: 1.45; }
-.log-entry { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 7px 9px; border-top: 1px solid rgba(255, 255, 255, .035); }
-.log-entry:first-child { border-top: 0; }
-.log-entry > i { display: grid; place-items: center; color: #d8a867; font: normal 13px serif; }
-.log-entry > div { min-width: 0; display: grid; gap: 1px; }
-.log-entry small { color: #806b5c; font-size: 8px; text-transform: uppercase; }
-.log-entry span { color: #bbaa99; font-size: 10px; line-height: 1.45; }
-.log-raid span { color: #d99b79; }
-.log-control span, .log-defense span { color: #a9c9d7; }
 .action-result-toast {
     position: absolute;
     top: 50%;
@@ -1142,3 +1154,85 @@
     .objective-options { grid-template-columns: 1fr; }
     .secret-objective-card { min-height: 190px; }
 }
+
+/* Tabletop paper treatment. The number badge is still rendered from
+   BattleTokenView.strength in GameBoard.tsx, so it is not baked into artwork. */
+.game-screen {
+    --paper: #eadcb9;
+    --paper-ink: #30251c;
+    --paper-muted: #715e48;
+    --paper-line: rgba(90, 67, 41, .34);
+    --paper-texture: url('/assets/ui/washi-paper-texture.png');
+    background: radial-gradient(ellipse at 50% 24%, rgba(166, 118, 62, .16), transparent 48%), linear-gradient(105deg, #17120d, #2b1d13 48%, #160f0b);
+}
+.game-hud, .private-rack, .phase-card, .game-log {
+    border-color: #806545;
+    border-radius: 4px;
+    color: var(--paper-ink);
+    background-color: var(--paper);
+    background-image: linear-gradient(rgba(255, 252, 230, .28), rgba(124, 86, 46, .08)), var(--paper-texture);
+    background-size: auto, 640px 640px;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, .48), inset 0 0 0 3px rgba(255, 248, 218, .38);
+}
+.game-hud { gap: 0; padding: 4px; }
+.round-summary, .first-player-banner, .hud-player, .copy-room-button { min-height: 55px; border-color: var(--paper-line); border-radius: 3px; background: transparent; box-shadow: none; }
+.round-summary { padding: 7px 10px; }
+.round-summary p, .first-player-banner b, .hud-player-copy strong { color: var(--paper-ink); }
+.round-summary strong, .first-player-banner small, .hud-player-copy span { color: #954530; }
+.first-player-banner { border-left: 1px solid var(--paper-line); border-right: 1px solid var(--paper-line); }
+.hud-player { padding: 7px 9px; border-width: 0 0 0 1px; }
+.hud-player.is-current { background: rgba(255, 249, 219, .52); }
+.hud-player.is-active { outline: 2px solid #b15f3e; outline-offset: -2px; box-shadow: inset 0 0 0 1px #f8df9f; }
+.hud-player-copy small { color: var(--paper-muted); }
+.copy-room-button { margin-left: 5px; color: #4b3726; font-weight: 800; }
+.copy-room-button:hover:not(:disabled) { background: rgba(113, 70, 39, .13); }
+.game-mon, .clan-badge { border: 3px solid #b39157; color: #f9edca; background: radial-gradient(circle at 35% 26%, #63788a, #233b4b 55%, #12212b 100%); box-shadow: 0 0 0 2px #3a2c20, 0 5px 9px rgba(50, 31, 17, .42), inset 0 0 0 2px rgba(255, 240, 182, .22); }
+.clan-badge { background: radial-gradient(circle at 35% 26%, color-mix(in srgb, var(--clan-accent) 82%, white), color-mix(in srgb, var(--clan-accent) 58%, #17232d) 54%, #162129 100%); }
+.map-frame { padding: 11px; border-color: #a17a48; border-radius: 3px; background: linear-gradient(135deg, #3e2717, #8c6236 3%, #25170e 7%, #150d08 93%, #8a6137); }
+.phase-card { min-height: 300px; padding: 20px; }
+.phase-kicker { color: #9a4834; }
+.phase-card h2, .ledger-title h3 { color: #34271d; font-family: Georgia, serif; }
+.phase-card p, .token-ledger > p { color: #594936; }
+.phase-action { border-color: #8f4435; color: #fff1d3; background: linear-gradient(#b35b48, #7f3128); box-shadow: inset 0 1px rgba(255, 241, 204, .3); }
+.phase-action:hover:not(:disabled) { background: linear-gradient(#c66b52, #90382d); }
+.private-rack { border-color: #806545; }
+.rack-player { padding-right: 12px; border-right: 1px solid var(--paper-line); }
+.rack-player span, .rack-player small { color: #8a523c; }
+.rack-player strong { color: #34271d; }
+.token-inventory > summary { color: #3d2d21; }
+.token-inventory > summary small { color: #79644d; }
+.battle-token { width: 76px; height: 76px; grid-template-rows: 1fr auto; padding: 10px 6px 9px; border: 4px solid #9d8255; border-radius: 50%; clip-path: none; color: #f8edcf; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.42), transparent 22%), radial-gradient(circle, #6e8593, #2f4c5e 56%, #162933 100%); box-shadow: 0 0 0 2px #33271d, 0 8px 14px rgba(0, 0, 0, .58), inset 0 0 0 3px rgba(255, 235, 177, .22); }
+.battle-token span { font-size: 28px; text-shadow: 0 2px 2px #10202a; }
+.battle-token small { color: #fff3d2; font-size: 7px; text-shadow: 0 1px 2px #1b2224; }
+.battle-token b, .placed-order b { width: 23px; height: 23px; border: 2px solid #c7ad72; color: #f7e6bd; background: radial-gradient(circle at 30% 25%, #728a9b, #254357 68%); box-shadow: 0 2px 5px rgba(0, 0, 0, .52), inset 0 0 0 1px rgba(255, 241, 197, .25); font: 800 11px Georgia, serif; }
+.battle-token b { top: 3px; right: 2px; }
+.battle-token-army { border-color: #a54f3c; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.42), transparent 22%), radial-gradient(circle, #9a6653, #673b34 56%, #38201d 100%); }
+.battle-token-fleet { border-color: #567f9c; }
+.battle-token-shinobi { border-color: #72577f; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.38), transparent 22%), radial-gradient(circle, #72577f, #3c2a4d 58%, #201827 100%); }
+.battle-token-blessing { border-color: #b69248; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.46), transparent 22%), radial-gradient(circle, #b69a54, #79602b 57%, #42341a 100%); }
+.battle-token-diplomacy { border-color: #638e6a; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.38), transparent 22%), radial-gradient(circle, #719477, #405e47 58%, #253628 100%); }
+.battle-token-raid { border-color: #ba6237; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.38), transparent 22%), radial-gradient(circle, #bd7048, #7b3e29 58%, #442219 100%); }
+.battle-token-blank { border-color: #8b8275; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.34), transparent 22%), radial-gradient(circle, #776f65, #4c453e 58%, #292621 100%); }
+.battle-token.is-selected { outline-color: rgba(178, 86, 57, .72); box-shadow: 0 0 0 3px #f4dc96, 0 9px 18px rgba(0,0,0,.62), 0 0 18px #d1784f; }
+.control-marker { border-radius: 50%; border-width: 3px; box-shadow: 0 0 0 2px #34271d, 0 4px 8px rgba(0, 0, 0, .7), inset 0 0 0 2px rgba(255, 235, 178, .22); }
+.placed-order { width: 50px; height: 50px; border-radius: 50%; clip-path: none; }
+.placed-order b { right: -5px; bottom: -5px; transform: rotate(var(--token-counter-angle, 0deg)); }
+
+/* Keep the information in the lower player rack comfortably readable. */
+.objective-tab-handle span { font-size: 13px; }
+.objective-tab-handle b { font-size: 10px; }
+.rack-player span { font-size: 9px; }
+.rack-player strong { font-size: 17px; }
+.rack-player small { font-size: 11px; }
+.token-inventory > summary b { font-size: 18px; }
+.token-inventory > summary small { font-size: 9px; }
+.battle-token small { font-size: 9px; }
+.battle-token em { font-size: 7px; }
+.setup-control-prompt b { font-size: 17px; }
+.setup-control-prompt small { font-size: 11px; }
+.action-card b, .clan-action-card b { font-size: 9px; }
+.clan-action-card em { font-size: 9px; }
+.rack-note strong { font-size: 16px; }
+.rack-note span { font-size: 11px; }
+.empty-hand { font-size: 12px; }
+@media (max-width: 1000px) { .game-hud { gap: 5px; } .hud-player { border: 1px solid var(--paper-line); } }

@@ -1,0 +1,14 @@
+.game-log { min-width: 0; overflow: hidden; border: 1px solid #806545; border-radius: 12px; background: rgba(18, 12, 9, .91); box-shadow: 0 12px 28px rgba(0, 0, 0, .34); }
+.game-log-title { display: grid; padding: 10px 11px 8px; border-bottom: 1px solid var(--paper-line); }
+.game-log-title span { color: #9a4834; font-size: 7px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.game-log-title b { color: #403025; font: 14px Georgia, serif; }
+.game-log-entries { max-height: 250px; overflow-y: auto; overscroll-behavior: contain; }
+.game-log-entries > p { margin: 0; padding: 12px; color: #75675c; font-size: 9px; line-height: 1.45; }
+.log-entry { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 7px 9px; border-top: 1px solid rgba(255, 255, 255, .035); }
+.log-entry:first-child { border-top: 0; }
+.log-entry > i { display: grid; place-items: center; color: #d8a867; font: normal 13px serif; }
+.log-entry > div { min-width: 0; display: grid; gap: 1px; }
+.log-entry small { color: #866f55; font-size: 8px; text-transform: uppercase; }
+.log-entry span { color: #403025; font-size: 10px; line-height: 1.45; }
+.log-raid span { color: #d99b79; }
+.log-control span, .log-defense span { color: #a9c9d7; }

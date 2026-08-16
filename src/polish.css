@@ -189,7 +189,7 @@
 .target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)::after {
     display: block;
     margin-top: 4px;
-    content: "× означает недоступную или уже занятую границу. На одной границе может лежать только один боевой жетон.";
+    content: "× означает недоступную цель. На сухопутной границе возможны две атаки — по одной в каждую сторону.";
     color: #9f7b68;
     font-size: 8px;
     line-height: 1.35;

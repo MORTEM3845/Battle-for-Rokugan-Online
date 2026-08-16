@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { roomApi } from '../api';
+import { lobbyApi } from '../lobby/api';
 import { FeedbackDialog } from '../components/FeedbackDialog';
 import { LanguageToggle, useLanguage } from '../i18n';
 import { navigate, saveSession } from '../lib/navigation';
@@ -17,7 +17,7 @@ export function HomePage() {
             setBusy(true);
             setError('');
             localStorage.setItem('rokugan-player-name', name.trim());
-            const result = await roomApi.create(name);
+            const result = await lobbyApi.create(name);
             saveSession(result.session);
             navigate(`/room/${result.room.code}`);
         } catch (e) {

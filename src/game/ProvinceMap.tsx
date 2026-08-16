@@ -5,17 +5,14 @@ import {
     useMemo,
     useRef,
     useState,
-    type CSSProperties,
     type MouseEvent,
     type PointerEvent as ReactPointerEvent
 } from 'react';
 import {
-    COASTAL_PROVINCES,
     LAND_BORDERS,
     PROVINCE_BASE_DEFENSE,
     PROVINCE_CENTERS,
     PROVINCE_HONOR,
-    PROVINCE_IDS,
     PROVINCE_NAMES,
     SEA_BORDERS,
     SHADOWLANDS_PROVINCES,
@@ -32,7 +29,11 @@ import {
     type VisibleTokenType
 } from '../../shared/room';
 import provinceSvg from '../assets/rokugan-provinces.svg?raw';
-import { CLAN_COLORS, CLAN_MON, TOKEN_INFO } from './GameBoard';
+import { angleToward, markerStyle, orderPlacement, pointToward } from './map/geometry';
+import { ControlMarkers, DefenseMarkers, SpecialMarkers } from './map/ProvinceMarkers';
+import { provinceIsEligible } from './map/targeting';
+import { CLAN_COLORS, TOKEN_INFO } from './presentation';
+import type { SelectedClanAction } from './types';
 
 interface ProvinceMapProps {
     game: GameViewState;
@@ -41,7 +42,7 @@ interface ProvinceMapProps {
     hoveredPlayerId: string | null;
     selectedToken: BattleTokenView | null;
     selectedActionCard: ActionCardType | null;
-    selectedClanAction: 'scorpion-peek' | 'unicorn-swap' | null;
+    selectedClanAction: SelectedClanAction | null;
     selectedClanOrderIds: string[];
     orderPlacementDisabled: boolean;
     controlPlacementActive: boolean;
@@ -175,6 +176,20 @@ export function ProvinceMap(props: ProvinceMapProps) {
     const landTargets = selectedToken && ['army', 'blank'].includes(selectedToken.type);
     const seaTargets = selectedToken && ['fleet', 'blank'].includes(selectedToken.type);
     const orderTargets = selectedToken?.type === 'blessing';
+    const blessingsByOrderId = useMemo(() => {
+        const blessings = new Map<string, PlacedOrderView[]>();
+
+        for (const order of game.orders) {
+            if (order.type !== 'blessing' || order.target.kind !== 'order')
+                continue;
+
+            const attached = blessings.get(order.target.id) ?? [];
+            attached.push(order);
+            blessings.set(order.target.id, attached);
+        }
+
+        return blessings;
+    }, [game.orders]);
 
     return <div className={`province-map landscape-map phase-${game.phase}`}
         onPointerMove={handleProvincePointerMove}
@@ -185,76 +200,23 @@ export function ProvinceMap(props: ProvinceMapProps) {
             <ProvinceShapes ref={layerRef} />
 
             <div className="map-markers">
-                {Object.entries(game.provinces).map(([provinceId, playerId]) => {
-                    if (!playerId)
-                        return null;
-
-                    const point = PROVINCE_CENTERS[provinceId];
-                    const player = playersById[playerId];
-
-                    if (!point || !player)
-                        return null;
-
-                    const color = player.clanId ? CLAN_COLORS[player.clanId] : '#8b7566';
-                    const clanName = player.clanId
-                        ? CLANS.find(clan => clan.id === player.clanId)?.name ?? player.clanId
-                        : 'без клана';
-
-                    return <span key={`control-${provinceId}`}
-                        className={`control-marker ${hoveredPlayerId === playerId ? 'is-highlighted' : ''}`}
-                        style={markerStyle(point.x, point.y, color)}
-                        title={`${PROVINCE_NAMES[provinceId]} · принадлежит клану ${clanName} (${player.name}) · ⭐ ${PROVINCE_HONOR[provinceId] ?? 0}`}>
-                        {player.clanId ? CLAN_MON[player.clanId] : '?'}
-                    </span>;
-                })}
-
-                {PROVINCE_IDS.map(provinceId => {
-                    const ownerId = game.provinces[provinceId];
-                    const owner = ownerId ? playersById[ownerId] : undefined;
-                    const earnedMarkers = game.defenseBonuses[provinceId] ?? 0;
-                    const earnedDefense = earnedMarkers * (owner?.clanId === 'crab' ? 3 : 1);
-                    const bonus = (PROVINCE_BASE_DEFENSE[provinceId] ?? 0) + earnedDefense;
-                    if (bonus <= 0)
-                        return null;
-
-                    const point = PROVINCE_CENTERS[provinceId];
-                    if (!point)
-                        return null;
-
-                    return <span key={`defense-${provinceId}`} className="defense-marker"
-                        style={markerStyle(point.x + 25, point.y - 20)}
-                        title={`${PROVINCE_NAMES[provinceId]}: общая защита +${bonus}` +
-                            `${owner?.clanId === 'crab' && earnedMarkers > 0
-                                ? ` (${earnedMarkers} открытых жетонов Краба × 3)`
-                                : ''}`}>
-                        🛡<b>+{bonus}</b>
-                    </span>;
-                })}
-
-                {Object.entries(game.provinceSpecials).map(([provinceId, special]) => {
-                    const point = PROVINCE_CENTERS[provinceId];
-                    if (!point)
-                        return null;
-
-                    return <span key={`special-${provinceId}`} className={`special-marker special-${special}`}
-                        style={markerStyle(point.x, point.y)}
-                        title={`${PROVINCE_NAMES[provinceId]}: ${special === 'scorched' ? 'разорена' : 'мир'}`}>
-                        {special === 'scorched' ? '🔥' : '☮'}
-                    </span>;
-                })}
+                <ControlMarkers game={game} playersById={playersById} hoveredPlayerId={hoveredPlayerId} />
+                <DefenseMarkers game={game} playersById={playersById} />
+                <SpecialMarkers game={game} />
 
                 {LAND_BORDERS.flatMap(border => {
-                    const occupied = game.orders.some(order =>
-                        order.target.kind === 'land-border' && order.target.id === border.id
-                    );
-
                     if (currentPlayerIsRonin) {
                         return border.provinces.map(attackedProvinceId => {
                             const targetCenter = PROVINCE_CENTERS[attackedProvinceId];
                             const point = targetCenter
                                 ? pointToward(border, targetCenter, 14)
                                 : border;
-                            const eligible = !!landTargets && !occupied &&
+                            const occupiedInDirection = game.orders.some(order =>
+                                order.target.kind === 'land-border' &&
+                                order.target.id === border.id &&
+                                order.target.provinceId === attackedProvinceId
+                            );
+                            const eligible = !!landTargets && !occupiedInDirection &&
                                 !border.provinces.some(id => !!game.provinceSpecials[id]) &&
                                 game.provinces[attackedProvinceId] !== currentPlayerId;
 
@@ -276,7 +238,12 @@ export function ProvinceMap(props: ProvinceMapProps) {
                         ? border.provinces.find(id => id !== ownedSource[0])!
                         : null;
 
-                    const eligible = !!landTargets && !occupied && !!attackedProvinceId &&
+                    const occupiedInDirection = !!attackedProvinceId && game.orders.some(order =>
+                        order.target.kind === 'land-border' &&
+                        order.target.id === border.id &&
+                        order.target.provinceId === attackedProvinceId
+                    );
+                    const eligible = !!landTargets && !occupiedInDirection && !!attackedProvinceId &&
                         !border.provinces.some(id => !!game.provinceSpecials[id]) &&
                         game.provinces[attackedProvinceId] !== currentPlayerId;
 
@@ -304,6 +271,11 @@ export function ProvinceMap(props: ProvinceMapProps) {
                 })}
 
                 {game.orders.map(order => {
+                    // An attached blessing is represented by the seal on its combat token,
+                    // rather than a second full-size marker covering that token.
+                    if (order.type === 'blessing' && order.target.kind === 'order')
+                        return null;
+
                     const placement = orderPlacement(order, game);
 
                     if (!placement)
@@ -311,13 +283,14 @@ export function ProvinceMap(props: ProvinceMapProps) {
 
                     const player = playersById[order.playerId];
                     const color = player?.clanId ? CLAN_COLORS[player.clanId] : '#8b7566';
+                    const attachedBlessings = blessingsByOrderId.get(order.id) ?? [];
+                    const blessingStrength = attachedBlessings.reduce(
+                        (total, blessing) => total + (blessing.strength ?? 0),
+                        0
+                    );
                     const canBless = orderTargets && order.playerId === currentPlayerId &&
                         ['army', 'fleet', 'shinobi'].includes(order.type);
-                    const protectedByBlessing = game.orders.some(candidate =>
-                        candidate.type === 'blessing' &&
-                        candidate.target.kind === 'order' &&
-                        candidate.target.id === order.id
-                    );
+                    const protectedByBlessing = attachedBlessings.length > 0;
                     const canUseActionCard = !!selectedActionCard &&
                         order.playerId !== currentPlayerId &&
                         !protectedByBlessing &&
@@ -339,7 +312,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
                         canUseClanAction;
 
                     return <button key={order.id}
-                        className={`placed-order placed-order-${order.type} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
+                        className={`placed-order placed-order-${order.type} ${protectedByBlessing ? 'is-blessed' : ''} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
                         style={markerStyle(placement.x, placement.y, color, placement.angle)}
                         disabled={!isInteractive}
                         onClick={() => canUseClanAction
@@ -350,6 +323,11 @@ export function ProvinceMap(props: ProvinceMapProps) {
                         title={order.type === 'hidden' ? 'Скрытый приказ' : tokenLabel(order.type)}>
                         <span>{tokenSymbol(order.type)}</span>
                         {order.strength !== null && <b>{order.strength}</b>}
+                        {protectedByBlessing && <span className="blessing-seal"
+                            title={`Благословение: +${blessingStrength} к силе и защита от эффектов`}>
+                            <span aria-hidden="true">祝</span>
+                            <strong>+{blessingStrength}</strong>
+                        </span>}
                         {order.isClanToken && <i>◆</i>}
                     </button>;
                 })}
@@ -412,103 +390,6 @@ function TargetMarker(props: {
         title={label}>
         <span>+</span>
     </button>;
-}
-
-function provinceIsEligible(token: BattleTokenView, provinceId: string, game: GameViewState, playerId: string): boolean {
-    if (game.provinceSpecials[provinceId])
-        return false;
-
-    const isRonin = game.players.find(player => player.playerId === playerId)?.isRonin ?? false;
-
-    if (token.type === 'blank' || token.type === 'shinobi')
-        return true;
-
-    if (token.type === 'army')
-        return game.provinces[provinceId] === playerId;
-
-    if (token.type === 'diplomacy')
-        return !isRonin && game.provinces[provinceId] === playerId;
-
-    if (token.type === 'fleet')
-        return game.provinces[provinceId] === playerId && COASTAL_PROVINCES.has(provinceId);
-
-    if (token.type === 'raid') {
-        if (isRonin)
-            return false;
-        if (game.provinces[provinceId] === playerId)
-            return false;
-        return true;
-    }
-
-    return false;
-}
-
-function orderPlacement(order: PlacedOrderView, game: GameViewState): { x: number; y: number; angle: number } | null {
-    if (order.target.kind === 'order') {
-        const base = game.orders.find(item => item.id === order.target.id);
-        const placement = base ? orderPlacement(base, game) : null;
-        return placement ? { x: placement.x + 9, y: placement.y - 9, angle: placement.angle } : null;
-    }
-
-    if (order.target.kind === 'province') {
-        const center = PROVINCE_CENTERS[order.target.id];
-
-        if (!center)
-            return null;
-
-        const provinceOrders = game.orders.filter(item =>
-            item.target.kind === 'province' && item.target.id === order.target.id
-        );
-
-        const index = provinceOrders.findIndex(item => item.id === order.id);
-        const spread = (index - (provinceOrders.length - 1) / 2) * 34;
-        const orbitAngle = 90 + spread;
-        const radius = 34;
-
-        const point = {
-            x: center.x + Math.cos(orbitAngle * Math.PI / 180) * radius,
-            y: center.y + Math.sin(orbitAngle * Math.PI / 180) * radius
-        };
-
-        return { ...point, angle: angleToward(point, center) };
-    }
-
-    const border = order.target.kind === 'land-border'
-        ? LAND_BORDERS.find(item => item.id === order.target.id)
-        : SEA_BORDERS.find(item => item.id === order.target.id);
-
-    if (!border)
-        return null;
-
-    const provinceId = order.target.provinceId ??
-        (order.target.kind === 'sea-border' && 'provinceId' in border ? border.provinceId : undefined);
-
-    const targetCenter = provinceId ? PROVINCE_CENTERS[provinceId] : null;
-    return { x: border.x, y: border.y, angle: targetCenter ? angleToward(border, targetCenter) : 0 };
-}
-
-function markerStyle(x: number, y: number, color?: string, angle = -90): CSSProperties {
-    return {
-        left: `${x / 1024 * 100}%`,
-        top: `${y / 1536 * 100}%`,
-        '--marker-color': color,
-        '--token-angle': `${angle}deg`,
-        '--token-counter-angle': `${-90 - angle}deg`
-    } as CSSProperties;
-}
-
-function angleToward(from: MapPoint, to: MapPoint): number {
-    return Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI + 90;
-}
-
-function pointToward(from: MapPoint, to: MapPoint, distance: number): MapPoint {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.hypot(dx, dy) || 1;
-    return {
-        x: from.x + dx / length * distance,
-        y: from.y + dy / length * distance
-    };
 }
 
 function tokenSymbol(type: VisibleTokenType): string {

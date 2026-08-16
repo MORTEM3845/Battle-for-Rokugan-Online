@@ -397,25 +397,55 @@ try {
             provinceId: roninBorder.provinces[0]
         }
     }];
+    const oppositeBorderTarget = {
+        kind: 'land-border',
+        id: roninBorder.id,
+        provinceId: roninBorder.provinces[1]
+    };
+    assert.equal(
+        roomObject.isTargetValid(
+            shugenjaPlacementRoom.game,
+            'raider',
+            { id: 'counterattack-army', type: 'army', strength: 1 },
+            oppositeBorderTarget
+        ),
+        true,
+        'На общей сухопутной границе должна быть доступна атака в обратном направлении'
+    );
+    assert.equal(
+        roomObject.isTargetValid(
+            shugenjaPlacementRoom.game,
+            'raider',
+            { id: 'duplicate-attack-army', type: 'army', strength: 1 },
+            {
+                kind: 'land-border',
+                id: roninBorder.id,
+                provinceId: roninBorder.provinces[0]
+            }
+        ),
+        false,
+        'Повторная атака в том же направлении должна оставаться недоступной'
+    );
     assert.equal(
         roomObject.hasAnyValidPlacement(shugenjaPlacementRoom.game, 'raider'),
-        false
+        true,
+        'Встречная атака через занятую границу должна считаться доступным размещением'
     );
     assert.equal(
         roomObject.hasAnyAvailablePlacementAction(shugenjaPlacementRoom.game, 'raider'),
         true,
         'Автопас не должен срабатывать, если сюгэндзя может освободить законную цель'
     );
-    const passResponse = await requestRoomObject.passPlacement(
-        new Request('https://room/game/pass', {
-            method: 'POST',
-            headers: { 'x-player-token': 'raider-token' }
-        }),
-        shugenjaPlacementRoom
+    await assert.rejects(
+        () => requestRoomObject.passPlacement(
+            new Request('https://room/game/pass', {
+                method: 'POST',
+                headers: { 'x-player-token': 'raider-token' }
+            }),
+            shugenjaPlacementRoom
+        ),
+        /законное размещение жетона/
     );
-    assert.equal(passResponse.status, 200);
-    assert.equal(shugenjaPlacementRoom.game.players.raider.skipsPlacement, true);
-    assert.equal(shugenjaPlacementRoom.game.phase, 'reveal');
 
     const shugenjaRoom = createRaidFixture(false);
     shugenjaRoom.game.phase = 'placement';

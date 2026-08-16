@@ -1,23 +1,16 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-    CLANS,
-    CLAN_RULES,
     type ActionCardType,
-    type ActionCardHandView,
-    type BattleTokenType,
-    type BattleTokenView,
-    type ClanId,
-    type GameLogEntry,
-    type GamePhase,
-    type GameResultView,
-    type GameViewState,
     type OrderTarget,
-    type RoomPlayer,
-    type RoomState,
-    type TokenPoolCountView
+    type RoomState
 } from '../../shared/room';
 import type { SecretObjectiveId } from '../../shared/objectives';
 import { ProvinceMap } from './ProvinceMap';
+import { GameHud } from './hud/GameHud';
+import { SecretObjectivePicker } from './objectives/SecretObjectivePicker';
+import { GamePhasePanel } from './phase/GamePhasePanel';
+import { PlayerRack } from './rack/PlayerRack';
+import type { SelectedClanAction } from './types';
 import './game.css';
 
 interface GameBoardProps {
@@ -37,48 +30,6 @@ interface GameBoardProps {
     onPlaceOrder: (tokenId: string, target: OrderTarget) => Promise<void>;
     onPlaceControl: (provinceId: string) => Promise<void>;
 }
-
-export const CLAN_COLORS: Record<ClanId, string> = {
-    crab: '#e8e5dc',
-    crane: '#91d8ec',
-    dragon: '#4b9b62',
-    lion: '#d6a83d',
-    phoenix: '#de7338',
-    scorpion: '#be3f3c',
-    unicorn: '#8e63bb'
-};
-
-export const CLAN_MON: Record<ClanId, string> = {
-    crab: '蟹',
-    crane: '鶴',
-    dragon: '龍',
-    lion: '獅',
-    phoenix: '鳳',
-    scorpion: '蠍',
-    unicorn: '麒'
-};
-
-export const TOKEN_INFO: Record<BattleTokenType, { symbol: string; label: string; hint: string }> = {
-    army: { symbol: '兵', label: 'Армия', hint: 'Своя провинция или сухопутная граница' },
-    fleet: { symbol: '船', label: 'Флот', hint: 'Своя прибрежная провинция или морская граница' },
-    shinobi: { symbol: '忍', label: 'Синоби', hint: 'Любая провинция' },
-    blessing: { symbol: '祝', label: 'Благословение', hint: 'Поверх своего боевого жетона' },
-    diplomacy: { symbol: '和', label: 'Дипломатия', hint: 'Своя провинция' },
-    raid: { symbol: '火', label: 'Погром', hint: 'Любая чужая или ничейная провинция; условие проверится при исполнении' },
-    blank: { symbol: '空', label: 'Пустой', hint: 'Имитирует любой приказ, кроме благословения' }
-};
-
-const PHASE_LABELS: Record<GamePhase, string> = {
-    setup: 'Начальная расстановка',
-    objectives: 'Выбор тайной цели',
-    placement: 'Размещение приказов',
-    reveal: 'Вскрытие приказов',
-    resolution: 'Результаты раунда',
-    finished: 'Игра завершена'
-};
-
-type SelectedClanAction = 'scorpion-peek' | 'unicorn-swap';
-
 export function GameBoard(props: GameBoardProps) {
     const {
         room,
@@ -176,7 +127,6 @@ export function GameBoard(props: GameBoardProps) {
 
     const currentPlayer = room.players.find(player => player.id === currentPlayerId)!;
     const currentStats = game.players.find(player => player.playerId === currentPlayerId)!;
-    const firstPlayer = room.players.find(player => player.id === game.firstPlayerId);
     const selectedToken = game.hand.find(token => token.id === selectedTokenId) ?? null;
     const isMyTurn = game.turnPlayerId === currentPlayerId;
     const mustReturnDragonToken = currentPlayer.clanId === 'dragon' && currentStats.mustReturnToken;
@@ -238,30 +188,7 @@ export function GameBoard(props: GameBoardProps) {
             currentPlayer={currentPlayer} onChoose={onChooseSecretObjective} />;
 
     return <main className="game-screen">
-        <header className="game-hud">
-            <div className="round-summary">
-                <span className="game-mon">戦</span>
-                <div>
-                    <p>{game.stage === 'setup' ? 'Подготовка к игре' : `Раунд ${game.round} / 5`}</p>
-                    <strong>{PHASE_LABELS[game.phase]}</strong>
-                </div>
-            </div>
-
-            <div className="first-player-banner">
-                <small>Первый игрок</small>
-                <b>{firstPlayer?.name ?? '—'}</b>
-            </div>
-
-            <div className="players-hud" aria-label="Игроки">
-                {room.players.map(player => <HudPlayer key={player.id} player={player} room={room}
-                    current={player.id === currentPlayerId} active={player.id === game.turnPlayerId}
-                    first={player.id === game.firstPlayerId} onHover={setHoveredPlayerId} />)}
-            </div>
-
-            <button className="copy-room-button" onClick={() => navigator.clipboard.writeText(`${location.origin}/room/${room.code}`)}>
-                Комната {room.code}
-            </button>
-        </header>
+        <GameHud room={room} currentPlayerId={currentPlayerId} onPlayerHover={setHoveredPlayerId} />
 
         <section className="game-stage" aria-label="Игровой стол">
             <div className="map-frame">
@@ -281,510 +208,44 @@ export function GameBoard(props: GameBoardProps) {
                 </div>}
             </div>
 
-            <div className="game-side-rail">
-                <aside className="phase-card">
-                    <span className="phase-kicker">{game.stage === 'setup' ? 'Перед первым раундом' : `Раунд ${game.round}`}</span>
-                    <h2>{PHASE_LABELS[game.phase]}</h2>
-                    {game.phase === 'setup' && <>
-                        <p>Начиная с первого игрока, каждый ставит по одному жетону контроля в свободную провинцию.</p>
-                        <div className="setup-progress">
-                            {room.players.map(player => {
-                                const stats = game.players.find(item => item.playerId === player.id)!;
-                                return <span key={player.id}><b>{player.name}</b><em>{stats.setupRemaining} осталось</em></span>;
-                            })}
-                        </div>
-                    </>}
-                    {game.phase === 'placement' && <p>{canPlaceOrder
-                        ? game.canPassPlacement
-                            ? 'Прямых целей для жетонов нет. Можно сыграть карту действия или пропустить оставшиеся ходы.'
-                            : currentStats.isRonin
-                            ? 'Вы ронин: армию можно поставить на любую сухопутную границу. Погром и дипломатия недоступны.'
-                            : 'Выберите один жетон снизу, затем нажмите на подсвеченную провинцию или границу.'
-                        : `Ожидаем единственный приказ игрока ${turnPlayer?.name ?? '—'}.`}</p>}
-                    {game.phase === 'placement' && canPlaceOrder && game.canPassPlacement &&
-                        <button className="phase-action force-resolution" disabled={busy} onClick={onPassPlacement}>
-                            Пропустить оставшиеся ходы
-                        </button>}
-                    {game.phase === 'reveal' && <>
-                        <p>{game.clanActionPending === 'scorpion-peek'
-                            ? 'Приказы пока закрыты: клан Скорпиона завершает тайный осмотр перед вскрытием.'
-                            : game.clanActionPending === 'unicorn-swap'
-                                ? 'Приказы пока закрыты: клан Единорога завершает манёвр перед вскрытием.'
-                                : 'Все жетоны перевёрнуты. Изучите приказы соперников: исполнение начнётся, когда подтвердят все игроки.'}</p>
-                        {scorpionActionPending && <div className="clan-action-panel">
-                            <b>🦂 Шёпот Скорпиона</b>
-                            <span>Выберите один закрытый жетон соперника на карте или пропустите способность.</span>
-                            <button className="phase-action force-resolution" disabled={busy}
-                                onClick={() => {
-                                    setSelectedClanAction(null);
-                                    void onUseScorpionPeek(null);
-                                }}>
-                                Не подглядывать в этом раунде
-                            </button>
-                        </div>}
-                        {unicornActionPending && <div className="clan-action-panel">
-                            <b>🦄 Манёвр Единорога</b>
-                            <span>{unicornOrderIds.length === 0
-                                ? 'Выберите первый свой жетон на карте'
-                                : 'Теперь выберите второй жетон — они поменяются местами'}</span>
-                            <button className="phase-action force-resolution" disabled={busy}
-                                onClick={() => {
-                                    setSelectedClanAction(null);
-                                    setUnicornOrderIds([]);
-                                    void onSwapUnicornOrders([]);
-                                }}>
-                                Оставить жетоны на местах
-                            </button>
-                        </div>}
-                        <div className="reveal-readiness">
-                            {room.players.map(player => {
-                                const ready = game.readyPlayerIds.includes(player.id);
-                                return <span key={player.id} className={ready ? 'is-ready' : ''}>
-                                    <b>{player.name}</b><em>{ready ? '✓ готов' : 'смотрит…'}</em>
-                                </span>;
-                            })}
-                        </div>
-                        <div className="resolution-actions">
-                            {currentPlayer.kind !== 'bot' && <button className="primary phase-action"
-                                disabled={busy || !!game.clanActionPending}
-                                onClick={() => onSetResolutionReady(!isRevealReady)}>
-                                {isRevealReady ? 'Отменить готовность' : 'Готов к исполнению'}
-                            </button>}
-                            {currentPlayer.isHost && <button className="phase-action force-resolution"
-                                disabled={busy}
-                                onClick={onAdvance}>Продолжить без готовности всех</button>}
-                        </div>
-                    </>}
-                    {game.phase === 'resolution' && <p>Погромы, дипломатия и битвы рассчитаны. Изменения отмечены на карте, подробности — в журнале.</p>}
-                    {game.phase === 'finished' && <>
-                        <p>Пятый раунд завершён. Победитель определяется по чести, затем по регионам и числу провинций.</p>
-                        {game.results && <FinalScoreboard results={game.results} players={room.players} />}
-                    </>}
-
-                    {currentPlayer.isHost && game.phase === 'setup' && <button className="primary phase-action"
-                        disabled={busy || !setupComplete} onClick={onAdvance}>
-                        {setupComplete ? 'Начать 1-й раунд' : 'Сначала закончите расстановку'}
-                    </button>}
-                    {currentPlayer.isHost && game.phase === 'resolution' && <button className="primary phase-action" disabled={busy} onClick={onAdvance}>
-                        {game.round === 5 ? 'Завершить игру' : `Перейти к раунду ${game.round + 1}`}
-                    </button>}
-                </aside>
-                <GameEventLog entries={game.log} />
-            </div>
+            <GamePhasePanel game={game} players={room.players} currentPlayer={currentPlayer} currentStats={currentStats}
+                turnPlayer={turnPlayer} busy={busy} canPlaceOrder={canPlaceOrder} setupComplete={setupComplete}
+                isRevealReady={isRevealReady} scorpionActionPending={scorpionActionPending}
+                unicornActionPending={unicornActionPending} unicornSelectionCount={unicornOrderIds.length}
+                onPassPlacement={onPassPlacement} onSetResolutionReady={onSetResolutionReady} onAdvance={onAdvance}
+                onSkipScorpion={() => {
+                    setSelectedClanAction(null);
+                    void onUseScorpionPeek(null);
+                }}
+                onSkipUnicorn={() => {
+                    setSelectedClanAction(null);
+                    setUnicornOrderIds([]);
+                    void onSwapUnicornOrders([]);
+                }} />
         </section>
 
-        <section className="private-rack" aria-label="Ваша область">
-            <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved}
-                finished={game.phase === 'finished'} />
-
-            <div className="rack-player">
-                <ClanBadge player={currentPlayer} />
-                <div>
-                    <span>Ваша область · скрыта от соперников</span>
-                    <strong>{currentPlayer.name}</strong>
-                    <small>{isMyTurn ? 'Ваш ход' : phaseStatus(game.phase, turnPlayer?.name)}</small>
-                </div>
-            </div>
-
-            <TokenInventory rows={game.tokenPool} />
-
-            <div className="token-hand">
-                {game.phase === 'setup' && <div className="setup-control-prompt">
-                    <span className="control-token-sample" style={clanStyle(currentPlayer)}>{currentPlayer.clanId ? CLAN_MON[currentPlayer.clanId] : '?'}</span>
-                    <div><b>{currentStats.setupRemaining} жетонов контроля</b><small>{canPlaceControl
-                        ? 'Нажмите на любую свободную провинцию'
-                        : setupComplete ? 'Вся начальная армия размещена' : `Ожидайте ход игрока ${turnPlayer?.name ?? '—'}`}</small></div>
-                </div>}
-                {game.phase === 'placement' && <ActionCardHand
-                    cards={game.actionCards}
-                    selected={selectedActionCard}
-                    disabled={!canPlaceOrder || busy}
-                    onSelect={card => {
-                        setSelectedTokenId(null);
-                        setSelectedActionCard(selectedActionCard === card ? null : card);
-                        setSelectedClanAction(null);
-                    }} />}
-                {game.phase === 'placement' && currentPlayer.clanId === 'scorpion' &&
-                    <button className={`clan-action-card scorpion-action ${selectedClanAction === 'scorpion-peek' ? 'is-selected' : ''}`}
-                        disabled={busy || !canUseScorpionPeek}
-                        onClick={() => {
-                            setSelectedActionCard(null);
-                            setSelectedTokenId(null);
-                            setSelectedClanAction(selectedClanAction === 'scorpion-peek' ? null : 'scorpion-peek');
-                        }}
-                        title={CLAN_RULES.scorpion.ability}>
-                        <span>🦂</span><b>Подглядеть</b><em>{currentStats.clanAbilityUsed ? '✓' : '1×'}</em>
-                    </button>}
-                {game.phase !== 'setup' && game.phase !== 'finished' && game.hand.map(token => <OrderToken key={token.id} token={token}
-                    selected={token.id === selectedTokenId}
-                    returnMode={mustReturnDragonToken}
-                    disabled={mustReturnDragonToken
-                        ? busy || token.type === 'blank'
-                        : !canPlaceOrder || busy ||
-                            (currentStats.isRonin && (token.type === 'raid' || token.type === 'diplomacy'))}
-                    onClick={() => {
-                        if (mustReturnDragonToken) {
-                            void onReturnDragonToken(token.id);
-                            return;
-                        }
-                        setSelectedActionCard(null);
-                        setSelectedClanAction(null);
-                        setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
-                    }} />)}
-                {game.phase === 'finished' && <div className="empty-hand">Матч завершён.</div>}
-            </div>
-
-            <div className="rack-note">
-                <strong>{mustReturnDragonToken
-                    ? 'Предвидение Дракона'
-                    : selectedClanAction === 'scorpion-peek'
-                        ? 'Шёпот Скорпиона'
-                        : selectedClanAction === 'unicorn-swap'
-                            ? 'Манёвр Единорога'
-                    : selectedActionCard
-                    ? selectedActionCard === 'scout' ? 'Разведка' : 'Сюгэндзя'
-                    : selectedToken ? TOKEN_INFO[selectedToken.type].label : game.phase === 'setup'
-                    ? 'Начальные владения' : `${game.hand.length} жетонов в активе`}</strong>
-                <span>{mustReturnDragonToken
-                    ? 'Нажмите на один непустой жетон, чтобы вернуть его в запас и оставить шесть.'
-                    : selectedClanAction === 'scorpion-peek'
-                        ? 'Выберите один закрытый жетон соперника на карте.'
-                        : selectedClanAction === 'unicorn-swap'
-                            ? `Выберите два своих жетона на карте · выбрано ${unicornOrderIds.length}/2`
-                    : selectedActionCard
-                    ? selectedActionCard === 'scout'
-                        ? 'Тайно посмотрите один закрытый жетон соперника.'
-                        : 'Раскройте и сбросьте один не защищённый благословением жетон соперника.'
-                    : selectedToken ? TOKEN_INFO[selectedToken.type].hint : game.phase === 'setup'
-                    ? 'Квадратный жетон с гербом означает контроль провинции'
-                    : currentStats.skipsPlacement
-                        ? 'В этом раунде у вас не осталось законных размещений'
-                        : currentStats.isRonin
-                        ? 'Статус ронина проверяется в начале раунда; невозможные оставшиеся ходы пропускаются автоматически'
-                        : 'Пять размещаются по очереди, один остаётся за ширмой'}</span>
-            </div>
-        </section>
+        <PlayerRack game={game} currentPlayer={currentPlayer} currentStats={currentStats} turnPlayer={turnPlayer}
+            busy={busy} isMyTurn={isMyTurn} canPlaceOrder={canPlaceOrder} canPlaceControl={canPlaceControl}
+            setupComplete={setupComplete} mustReturnDragonToken={mustReturnDragonToken}
+            canUseScorpionPeek={canUseScorpionPeek} selectedToken={selectedToken}
+            selectedActionCard={selectedActionCard} selectedClanAction={selectedClanAction}
+            unicornOrderIds={unicornOrderIds} onReturnDragonToken={onReturnDragonToken}
+            onSelectActionCard={card => {
+                setSelectedTokenId(null);
+                setSelectedActionCard(selectedActionCard === card ? null : card);
+                setSelectedClanAction(null);
+            }}
+            onToggleScorpion={() => {
+                setSelectedActionCard(null);
+                setSelectedTokenId(null);
+                setSelectedClanAction(selectedClanAction === 'scorpion-peek' ? null : 'scorpion-peek');
+            }}
+            onSelectToken={token => {
+                setSelectedActionCard(null);
+                setSelectedClanAction(null);
+                setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
+            }} />
 
         {error && <p className="game-error">{error}</p>}
     </main>;
-}
-
-function SecretObjectivePicker(props: {
-    room: RoomState;
-    game: GameViewState;
-    currentPlayer: RoomPlayer;
-    busy: boolean;
-    error: string;
-    onChoose: (objectiveId: SecretObjectiveId) => Promise<void>;
-}) {
-    const { room, game, currentPlayer, busy, error, onChoose } = props;
-    const options = game.secretObjectiveOptions;
-
-    return <main className="game-screen objective-selection-screen">
-        <section className="objective-selection">
-            <span className="phase-kicker">Перед начальной расстановкой</span>
-            <h1>Выберите тайную цель</h1>
-            <p>В конце пятого раунда цель раскроется и принесёт указанную честь, если условие выполнено.</p>
-
-            {options.length > 0
-                ? <div className="objective-options">
-                    {options.map(objective => <button key={objective.id} className="secret-objective-card"
-                        disabled={busy} onClick={() => onChoose(objective.id)}>
-                        <small>Тайная цель</small>
-                        <strong>{objective.name}</strong>
-                        <span>{objective.condition}</span>
-                        <b>⭐ +{objective.honor}</b>
-                    </button>)}
-                </div>
-                : <div className="objective-waiting">
-                    <b>Ваша цель выбрана и скрыта.</b>
-                    <span>Ожидаем остальных игроков…</span>
-                </div>}
-
-            <div className="objective-readiness">
-                {room.players.map(player => {
-                    const stats = game.players.find(candidate => candidate.playerId === player.id);
-                    return <span key={player.id} className={stats?.hasSecretObjective ? 'is-ready' : ''}>
-                        <b>{player.id === currentPlayer.id ? `${player.name} (вы)` : player.name}</b>
-                        <em>{stats?.hasSecretObjective ? '✓ выбрана' : 'выбирает…'}</em>
-                    </span>;
-                })}
-            </div>
-            {error && <p className="game-error">{error}</p>}
-        </section>
-    </main>;
-}
-
-function SecretObjectiveTab(props: {
-    objective: GameViewState['secretObjective'];
-    achieved: boolean;
-    finished: boolean;
-}) {
-    const { objective, achieved, finished } = props;
-    if (!objective)
-        return null;
-
-    const status = achieved ? '✓ выполнена' : finished ? '✕ не выполнена' : '○ в процессе';
-    return <aside className={`objective-tab ${achieved ? 'is-achieved' : ''} ${finished && !achieved ? 'is-failed' : ''}`}
-        tabIndex={0}>
-        <div className="objective-tab-handle">
-            <span>🎴 Тайная цель</span>
-            <b>{status}</b>
-        </div>
-        <div className="objective-tab-card">
-            <small>Только для вас</small>
-            <strong>{objective.name}</strong>
-            <p>{objective.condition}</p>
-            <div>
-                <b>⭐ +{objective.honor}</b>
-                <span>{achieved
-                    ? 'Условие выполнено'
-                    : finished
-                        ? 'Условие не выполнено к концу партии'
-                        : 'Условие пока не выполнено'}</span>
-            </div>
-        </div>
-    </aside>;
-}
-
-function TokenInventory({ rows }: { rows: TokenPoolCountView[] }) {
-    const totals = rows.reduce((result, row) => ({
-        stock: result.stock + row.stock,
-        hand: result.hand + row.hand,
-        discard: result.discard + row.discard,
-        placed: result.placed + row.placed
-    }), { stock: 0, hand: 0, discard: 0, placed: 0 });
-
-    return <details className="token-inventory">
-        <summary title="Показать запас, актив, сброс и сыгранные жетоны">
-            <span className="inventory-stack" aria-hidden="true">
-                <i>兵</i><i>船</i><i>忍</i>
-            </span>
-            <span><b>{totals.hand}</b><small>жетонов в активе</small></span>
-        </summary>
-        <aside className="token-ledger">
-            <div className="ledger-title">
-                <span>Ваша открытая информация</span>
-                <h3>Запас боевых жетонов</h3>
-            </div>
-            <div className="ledger-head"><span>Жетон</span><b>Запас</b><b>Актив</b><b>Сброс</b><b>Поле</b></div>
-            <div className="ledger-rows">
-                {rows.map((row, index) => <div className={`ledger-row ${row.isClanToken ? 'is-clan-token' : ''}`}
-                    key={`${row.type}-${row.strength}-${row.isClanToken ? 'clan' : 'base'}-${index}`}>
-                    <span>
-                        <i className={`mini-token mini-token-${row.type}`}>{TOKEN_INFO[row.type].symbol}</i>
-                        <span>{TOKEN_INFO[row.type].label}{row.strength !== null ? ` ${row.strength}` : ''}</span>
-                        {row.isClanToken && <em>клановый</em>}
-                    </span>
-                    <b>{row.stock}</b><b>{row.hand}</b><b>{row.discard}</b><b>{row.placed}</b>
-                </div>)}
-            </div>
-            <div className="ledger-total"><span>Всего</span><b>{totals.stock}</b><b>{totals.hand}</b><b>{totals.discard}</b><b>{totals.placed}</b></div>
-            <p>Клановый жетон отмечен отдельно. Жетоны на поле и в сбросе видны всем.</p>
-        </aside>
-    </details>;
-}
-
-function GameEventLog({ entries }: { entries: GameLogEntry[] }) {
-    const visibleEntries = [...entries].reverse();
-
-    return <aside className="game-log" aria-label="Журнал событий">
-        <div className="game-log-title">
-            <span>Что произошло</span>
-            <b>Журнал раунда</b>
-        </div>
-        <div className="game-log-entries">
-            {visibleEntries.length === 0
-                ? <p>События появятся после вскрытия первых приказов.</p>
-                : visibleEntries.map(entry => <article key={entry.id} className={`log-entry log-${entry.type}`}>
-                    <i>{logSymbol(entry.type)}</i>
-                    <div><small>Раунд {entry.round}</small><span>{entry.message}</span></div>
-                </article>)}
-        </div>
-    </aside>;
-}
-
-function logSymbol(type: GameLogEntry['type']): string {
-    if (type === 'raid')
-        return '🔥';
-    if (type === 'diplomacy')
-        return '☮';
-    if (type === 'battle')
-        return '⚔';
-    if (type === 'defense')
-        return '🛡';
-    if (type === 'control')
-        return '旗';
-    if (type === 'reveal')
-        return '◉';
-    if (type === 'card')
-        return '✦';
-    if (type === 'score')
-        return '⭐';
-    return '•';
-}
-
-function HudPlayer(props: {
-    player: RoomPlayer;
-    room: RoomState;
-    current: boolean;
-    active: boolean;
-    first: boolean;
-    onHover: (id: string | null) => void;
-}) {
-    const { player, room, current, active, first, onHover } = props;
-    const stats = room.game?.players.find(item => item.playerId === player.id);
-    const clanRule = player.clanId ? CLAN_RULES[player.clanId] : null;
-    return <article className={`hud-player ${current ? 'is-current' : ''} ${active ? 'is-active' : ''}`} style={clanStyle(player)}
-        tabIndex={0}
-        onPointerEnter={() => onHover(player.id)} onPointerLeave={() => onHover(null)}>
-        <ClanBadge player={player} />
-        <div className="hud-player-copy">
-            <span>{first ? 'Первый игрок' : current ? 'Вы' : player.kind === 'bot' ? 'Бот' : 'Игрок'}</span>
-            <strong>{player.name}</strong>
-            <small>{room.game?.phase === 'setup' ? `${stats?.setupRemaining ?? 0} контр.` :
-                `${stats?.provinceCount ?? 0} пров. · ${stats?.placedCount ?? 0}/5` +
-                `${stats?.isRonin ? ' · ронин' : ''}${stats?.skipsPlacement ? ' · пас' : ''}`}</small>
-        </div>
-        <div className="player-popover">
-            <b>{player.name}</b>
-            <span>Жетоны в активе: {stats?.handCount ?? 0}</span>
-            <span>Личный запас: {stats?.stockCount ?? 0}</span>
-            <span>Сброс: {stats?.discardCount ?? 0}</span>
-            <span>Провинции: {stats?.provinceCount ?? 0}</span>
-            {stats?.isRonin && <span>Статус: ронин{stats.skipsPlacement ? ', пропускает размещение' : ''}</span>}
-            <span>Контроль на подготовке: {stats?.setupRemaining ?? 0}</span>
-            {clanRule && <div className="clan-rule-preview">
-                <strong>{clanRule.name}</strong>
-                <span>{clanRule.ability}</span>
-                <em>Особый жетон: {clanRule.uniqueToken.label}</em>
-            </div>}
-            <em>Владения и приказы игрока увеличены на карте</em>
-        </div>
-    </article>;
-}
-
-function ClanBadge({ player }: { player: RoomPlayer }) {
-    const clan = CLANS.find(item => item.id === player.clanId);
-    return <div className="clan-badge" style={clanStyle(player)} title={clan ? `Клан ${clan.name}` : 'Клан'}>
-        {player.clanId ? CLAN_MON[player.clanId] : '?'}
-    </div>;
-}
-
-function OrderToken(props: {
-    token: BattleTokenView;
-    selected: boolean;
-    disabled: boolean;
-    returnMode?: boolean;
-    onClick: () => void;
-}) {
-    const { token, selected, disabled, returnMode, onClick } = props;
-    const info = TOKEN_INFO[token.type];
-    return <button className={`battle-token battle-token-${token.type} ${selected ? 'is-selected' : ''} ${token.isClanToken ? 'is-clan-token' : ''} ${returnMode && token.type !== 'blank' ? 'is-return-option' : ''}`}
-        type="button" disabled={disabled} onClick={onClick}
-        title={returnMode && token.type !== 'blank' ? 'Вернуть этот жетон в запас' : info.hint}>
-        <span>{info.symbol}</span>
-        {token.strength !== null && <b>{token.strength}</b>}
-        {token.isClanToken && <em>клан</em>}
-        <small>{info.label}</small>
-    </button>;
-}
-
-function ActionCardHand(props: {
-    cards: ActionCardHandView;
-    selected: ActionCardType | null;
-    disabled: boolean;
-    onSelect: (card: ActionCardType) => void;
-}) {
-    const { cards, selected, disabled, onSelect } = props;
-    return <div className="action-card-hand" aria-label="Карты действий">
-        <button className={`action-card scout-card ${selected === 'scout' ? 'is-selected' : ''}`}
-            disabled={disabled || cards.scout <= 0} onClick={() => onSelect('scout')}
-            title="Тайно посмотреть один закрытый жетон соперника">
-            <span>👁</span><b>Разведка</b><em>×{cards.scout}</em>
-        </button>
-        <button className={`action-card shugenja-card ${selected === 'shugenja' ? 'is-selected' : ''}`}
-            disabled={disabled || cards.shugenja <= 0} onClick={() => onSelect('shugenja')}
-            title="Раскрыть и сбросить один жетон соперника">
-            <span>✨</span><b>Сюгэндзя</b><em>×{cards.shugenja}</em>
-        </button>
-    </div>;
-}
-
-function FinalScoreboard({ results, players }: { results: GameResultView[]; players: RoomPlayer[] }) {
-    return <div className="final-scoreboard">
-        {results.map(result => {
-            const player = players.find(candidate => candidate.id === result.playerId);
-            return <article key={result.playerId} className={result.isWinner ? 'is-winner' : ''}
-                tabIndex={0} aria-label={resultTooltip(result)}>
-                <span>{result.isWinner ? '🏆' : `#${result.rank}`}</span>
-                <div>
-                    <b>{player?.name ?? 'Игрок'}</b>
-                    <small>
-                        ⭐ {result.provinceHonor} провинции · {result.controlHonor} контроль · {result.regionHonor} регионы
-                    </small>
-                    {result.controlledRegions.length > 0 &&
-                        <em>{result.controlledRegions.join(', ')}</em>}
-                    {result.secretObjective && <em className={result.secretObjectiveAchieved ? 'objective-complete' : ''}>
-                        🎴 {result.secretObjective.name}: {result.secretObjectiveAchieved ? `+${result.secretHonor}` : 'не выполнена'}
-                    </em>}
-                </div>
-                <strong>{result.totalHonor}</strong>
-                <div className="score-breakdown" role="tooltip">
-                    <pre>{resultTooltip(result)}</pre>
-                </div>
-            </article>;
-        })}
-    </div>;
-}
-
-function resultTooltip(result: GameResultView): string {
-    const lines = [
-        `Итого: ${result.totalHonor} чести`,
-        `Для ничьей: ${result.controlledRegions.length} регионов, ${result.provinceCount} провинций`,
-        '',
-        `Цветки в провинциях: ${result.provinceHonor}`
-    ];
-    if (result.provinceHonorSources.length === 0)
-        lines.push('• нет (Земли Теней не приносят честь)');
-    else
-        for (const source of result.provinceHonorSources)
-            lines.push(`• ${source.name}: ⭐ ${source.honor}`);
-
-    lines.push('', `Открытые жетоны контроля: ${result.controlHonor}`);
-    if (result.controlHonorSources.length === 0)
-        lines.push('• нет');
-    else
-        for (const source of result.controlHonorSources)
-            lines.push(`• ${source.name}: ⭐ ${source.honor}`);
-
-    lines.push('', `Регионы: ${result.regionHonor}`);
-    if (result.regionHonorSources.length === 0)
-        lines.push('• нет полностью контролируемых регионов');
-    else
-        for (const source of result.regionHonorSources)
-            lines.push(`• ${source.name}: ⭐ ${source.honor}`);
-
-    lines.push('', `Тайная цель: ${result.secretHonor}`);
-    if (result.secretObjective) {
-        lines.push(`• ${result.secretObjective.name} — ${result.secretObjectiveAchieved ? 'выполнена' : 'не выполнена'}`);
-        lines.push(`• ${result.secretObjective.condition}`);
-    }
-    return lines.join('\n');
-}
-
-function clanStyle(player: RoomPlayer): CSSProperties {
-    return { '--clan-accent': player.clanId ? CLAN_COLORS[player.clanId] : '#8b7566' } as CSSProperties;
-}
-
-function phaseStatus(phase: string, turnName?: string): string {
-    if (phase === 'setup')
-        return `Расставляет ${turnName ?? '—'}`;
-    if (phase === 'reveal')
-        return 'Приказы открыты · ждём готовности';
-    if (phase === 'resolution')
-        return 'Результаты рассчитаны';
-    if (phase === 'finished')
-        return 'Матч завершён';
-    return `Ход игрока ${turnName ?? '—'}`;
 }

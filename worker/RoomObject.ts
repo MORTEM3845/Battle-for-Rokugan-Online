@@ -21,9 +21,7 @@ import {
 } from '../shared/objectives';
 import {
     CLAN_RULES,
-    type ActionCardType,
     type BattleTokenType,
-    type BattleTokenView,
     type ClanActionType,
     type ClanId,
     type GameLogEntry,
@@ -32,27 +30,17 @@ import {
     type GameResultView,
     type OrderTarget,
     type PlacedOrderView,
-    type ProvinceSpecial,
-    type RoomPlayer,
     type RoomState
 } from '../shared/room';
-
-interface Env {
-    ROOMS: DurableObjectNamespace;
-}
-
-interface StoredPlayer extends RoomPlayer {
-    token: string;
-}
-
-interface StoredBattleToken extends BattleTokenView {}
-
-interface StoredPlacedOrder {
-    id: string;
-    playerId: string;
-    token: StoredBattleToken;
-    target: OrderTarget;
-}
+import type { Env, StoredBattleToken, StoredGame, StoredPlacedOrder, StoredPlayer, StoredPlayerGame, StoredRoom } from './room/types';
+import { randomItem, shuffled } from './room/collections';
+import { RoomRequestError as RequestError, jsonResponse as json } from './room/http';
+import {
+    ROOM_SCHEMA_VERSION, addLobbyBot, assertLobbyCanStart, createLobby, findPlayer,
+    joinLobby, removeLobbyBot, requireHost, requirePlayer, selectLobbyClan, setLobbyReady, toPlayerSession
+} from './room/lobby';
+import { hasAttachedBlessing, hasLandOrderInDirection, hasSeaBorderOrder } from './game/orderQueries';
+import { calculateGameResults, hasConnectedProvinceGroup, isSecretObjectiveAchieved } from './game/scoring';
 
 interface BotPlacementChoice {
     token: StoredBattleToken;
@@ -60,53 +48,6 @@ interface BotPlacementChoice {
     score: number;
 }
 
-interface StoredPlayerGame {
-    hand: StoredBattleToken[];
-    stock: StoredBattleToken[];
-    discard: StoredBattleToken[];
-    setupRemaining: number;
-    roundPlacedCount: number;
-    actionCards: Record<ActionCardType, number>;
-    scoutedOrderIds: string[];
-    secretObjectiveOptions: SecretObjectiveId[];
-    secretObjectiveId: SecretObjectiveId | null;
-    isRonin: boolean;
-    skipsPlacement: boolean;
-    clanAbilityUsed: boolean;
-    mustReturnToken: boolean;
-}
-
-interface StoredGame {
-    stage: 'setup' | 'rounds' | 'finished';
-    round: number;
-    phase: GamePhase;
-    objectiveResumePhase: Exclude<GamePhase, 'objectives'> | null;
-    firstPlayerId: string;
-    turnPlayerId: string | null;
-    firstPlayerBag: string[];
-    players: Record<string, StoredPlayerGame>;
-    provinces: Record<string, string | null>;
-    defenseBonuses: Record<string, number>;
-    provinceSpecials: Record<string, ProvinceSpecial>;
-    readyPlayerIds: string[];
-    orders: StoredPlacedOrder[];
-    attemptedAttackProvinceIds: string[];
-    cancelledAttackProvinceIds: string[];
-    log: GameLogEntry[];
-    results: GameResultView[] | null;
-}
-
-interface StoredRoom {
-    schemaVersion: number;
-    code: string;
-    status: 'lobby' | 'playing';
-    maxPlayers: number;
-    players: StoredPlayer[];
-    createdAt: string;
-    game: StoredGame | null;
-}
-
-const ALL_CLANS: ClanId[] = ['crab', 'crane', 'dragon', 'lion', 'phoenix', 'scorpion', 'unicorn'];
 const TOKEN_TYPES: BattleTokenType[] = ['army', 'fleet', 'shinobi', 'blessing', 'diplomacy', 'raid', 'blank'];
 const TOKEN_TYPE_NAMES: Record<BattleTokenType, string> = {
     army: 'армия',
@@ -118,33 +59,6 @@ const TOKEN_TYPE_NAMES: Record<BattleTokenType, string> = {
     blank: 'пустой жетон'
 };
 const SETUP_CONTROL_TOKENS: Record<number, number> = { 2: 11, 3: 7, 4: 5, 5: 4 };
-const ROOM_SCHEMA_VERSION = 5;
-
-class RequestError extends Error {
-    constructor(readonly status: number, message: string) {
-        super(message);
-        this.name = 'RequestError';
-    }
-}
-
-const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
-    status,
-    headers: {
-        'cache-control': 'no-store',
-        'content-type': 'application/json; charset=utf-8',
-        'x-content-type-options': 'nosniff'
-    }
-});
-
-const randomItem = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
-const shuffled = <T,>(items: T[]): T[] => {
-    const result = [...items];
-    for (let index = result.length - 1; index > 0; index--) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
-    }
-    return result;
-};
 
 export class RoomObject {
     private requestQueue: Promise<void> = Promise.resolve();
@@ -240,104 +154,52 @@ export class RoomObject {
             return json({ error: 'Код комнаты уже занят' }, 409);
 
         const body = await request.json<{ code: string; playerName: string }>();
-        const player = this.createHuman(body.playerName, true);
-        const room: StoredRoom = {
-            schemaVersion: ROOM_SCHEMA_VERSION,
-            code: body.code,
-            status: 'lobby',
-            maxPlayers: 5,
-            players: [player],
-            createdAt: new Date().toISOString(),
-            game: null
-        };
+        const { room, player } = createLobby(body.code, body.playerName);
 
         await this.save(room);
         return json({ room: this.toPublicState(room, player), session: this.toSession(room.code, player) }, 201);
     }
 
     private async joinRoom(request: Request, room: StoredRoom): Promise<Response> {
-        this.ensureLobby(room);
-        if (room.players.length >= room.maxPlayers)
-            throw new RequestError(400, 'Комната заполнена');
-
         const body = await request.json<{ playerName: string }>();
-        const player = this.createHuman(body.playerName, false);
-        room.players.push(player);
+        const player = joinLobby(room, body.playerName);
         await this.save(room);
         return json({ room: this.toPublicState(room, player), session: this.toSession(room.code, player) }, 201);
     }
 
     private async selectClan(request: Request, room: StoredRoom): Promise<Response> {
-        this.ensureLobby(room);
         const player = this.requirePlayer(request, room);
         const body = await request.json<{ clanId: ClanId }>();
-
-        if (!ALL_CLANS.includes(body.clanId))
-            throw new RequestError(400, 'Неизвестный клан');
-        if (room.players.some(item => item.id !== player.id && item.clanId === body.clanId))
-            throw new RequestError(400, 'Этот клан уже выбран');
-
-        player.clanId = body.clanId;
-        player.isReady = false;
+        selectLobbyClan(room, player, body.clanId);
         await this.save(room);
         return json(this.toPublicState(room, player));
     }
 
     private async setReady(request: Request, room: StoredRoom): Promise<Response> {
-        this.ensureLobby(room);
         const player = this.requirePlayer(request, room);
         const body = await request.json<{ isReady: boolean }>();
-
-        if (body.isReady && !player.clanId)
-            throw new RequestError(400, 'Сначала выберите клан');
-
-        player.isReady = body.isReady;
+        setLobbyReady(room, player, body.isReady);
         await this.save(room);
         return json(this.toPublicState(room, player));
     }
 
     private async addBot(request: Request, room: StoredRoom): Promise<Response> {
-        this.ensureLobby(room);
         const host = this.requireHost(request, room);
-        if (room.players.length >= room.maxPlayers)
-            throw new RequestError(400, 'Комната заполнена');
-
-        const freeClans: ClanId[] = ALL_CLANS.filter(clan => !room.players.some(player => player.clanId === clan));
-        room.players.push({
-            id: crypto.randomUUID(),
-            token: crypto.randomUUID(),
-            name: `Бот ${room.players.filter(player => player.kind === 'bot').length + 1}`,
-            kind: 'bot',
-            isHost: false,
-            isReady: true,
-            clanId: randomItem(freeClans)
-        });
-
+        addLobbyBot(room);
         await this.save(room);
         return json(this.toPublicState(room, host), 201);
     }
 
     private async removeBot(request: Request, room: StoredRoom, botId: string): Promise<Response> {
-        this.ensureLobby(room);
         const host = this.requireHost(request, room);
-        const bot = room.players.find(player => player.id === botId && player.kind === 'bot');
-        if (!bot)
-            throw new RequestError(400, 'Бот не найден');
-
-        room.players = room.players.filter(player => player.id !== botId);
+        removeLobbyBot(room, botId);
         await this.save(room);
         return json(this.toPublicState(room, host));
     }
 
     private async startGame(request: Request, room: StoredRoom): Promise<Response> {
-        this.ensureLobby(room);
         const host = this.requireHost(request, room);
-        if (room.players.length < 2 || room.players.length > room.maxPlayers)
-            throw new RequestError(400, 'Для запуска нужны от 2 до 5 игроков');
-        if (room.players.some(player => !player.clanId))
-            throw new RequestError(400, 'Все игроки должны выбрать клан');
-        if (room.players.some(player => !player.isReady))
-            throw new RequestError(400, 'Все игроки должны быть готовы');
+        assertLobbyCanStart(room);
 
         const firstPlayerBag = room.players.map(player => player.id);
         const firstPlayerId = randomItem(firstPlayerBag);
@@ -492,88 +354,7 @@ export class RoomObject {
     }
 
     private calculateResults(room: StoredRoom): GameResultView[] {
-        const game = this.requireGame(room);
-        const provinceCounts = Object.fromEntries(room.players.map(player => [
-            player.id,
-            PROVINCE_IDS.filter(id => game.provinces[id] === player.id).length
-        ]));
-        const fewestProvinceCount = Math.min(...Object.values(provinceCounts));
-        const results = room.players.map(player => {
-            const controlledProvinceIds = PROVINCE_IDS.filter(id => game.provinces[id] === player.id);
-            const controlledRegions = REGIONS
-                .filter(region => region.awardsHonor)
-                .filter(region => {
-                    const availableProvinceIds = region.provinceIds
-                        .filter(id => game.provinceSpecials[id] !== 'scorched');
-                    return availableProvinceIds.length > 0 &&
-                        availableProvinceIds.every(id => game.provinces[id] === player.id);
-                });
-            const provinceHonorSources = controlledProvinceIds
-                .filter(id => !SHADOWLANDS_PROVINCES.has(id))
-                .map(id => ({ provinceId: id, name: PROVINCE_NAMES[id], honor: PROVINCE_HONOR[id] ?? 0 }))
-                .filter(source => source.honor > 0);
-            const controlHonorSources = controlledProvinceIds
-                .filter(id => !SHADOWLANDS_PROVINCES.has(id))
-                .map(id => ({
-                    provinceId: id,
-                    name: PROVINCE_NAMES[id],
-                    honor: game.defenseBonuses[id] ?? 0
-                }))
-                .filter(source => source.honor > 0);
-            const regionHonorSources = controlledRegions.map(region => ({ name: region.name, honor: 5 }));
-            const provinceHonor = provinceHonorSources.reduce((sum, source) => sum + source.honor, 0);
-            const controlHonor = controlHonorSources.reduce((sum, source) => sum + source.honor, 0);
-            const regionHonor = regionHonorSources.reduce((sum, source) => sum + source.honor, 0);
-            const secretObjectiveId = game.players[player.id].secretObjectiveId;
-            const secretObjective = secretObjectiveId ? SECRET_OBJECTIVES_BY_ID[secretObjectiveId] : null;
-            const secretObjectiveAchieved = secretObjectiveId
-                ? this.isSecretObjectiveAchieved(
-                    secretObjectiveId,
-                    controlledProvinceIds,
-                    provinceCounts[player.id] === fewestProvinceCount
-                )
-                : false;
-            const secretHonor = secretObjectiveAchieved ? secretObjective?.honor ?? 0 : 0;
-
-            return {
-                playerId: player.id,
-                provinceHonor,
-                controlHonor,
-                regionHonor,
-                secretHonor,
-                totalHonor: provinceHonor + controlHonor + regionHonor + secretHonor,
-                controlledRegions: controlledRegions.map(region => region.name),
-                provinceCount: controlledProvinceIds.length,
-                provinceHonorSources,
-                controlHonorSources,
-                regionHonorSources,
-                secretObjective,
-                secretObjectiveAchieved,
-                rank: 0,
-                isWinner: false
-            };
-        });
-
-        const sorted = [...results].sort((left, right) =>
-            right.totalHonor - left.totalHonor ||
-            right.controlledRegions.length - left.controlledRegions.length ||
-            right.provinceCount - left.provinceCount
-        );
-        let rank = 0;
-        let previous: GameResultView | undefined;
-        for (const [index, result] of sorted.entries()) {
-            const tied = previous &&
-                result.totalHonor === previous.totalHonor &&
-                result.controlledRegions.length === previous.controlledRegions.length &&
-                result.provinceCount === previous.provinceCount;
-            if (!tied)
-                rank = index + 1;
-            result.rank = rank;
-            result.isWinner = rank === 1;
-            previous = result;
-        }
-
-        return sorted;
+        return calculateGameResults(room);
     }
 
     private isSecretObjectiveAchieved(
@@ -581,37 +362,7 @@ export class RoomObject {
         controlledProvinceIds: string[],
         hasFewestProvinces: boolean
     ): boolean {
-        const controlled = new Set(controlledProvinceIds);
-        const controlsClanCapitalOrTwo = (clanId: ClanId, regionId: string) =>
-            controlled.has(CLAN_CAPITALS[clanId]) ||
-            controlledProvinceIds.filter(id => PROVINCE_REGIONS[id] === regionId).length >= 2;
-
-        switch (objectiveId) {
-            case 'five_winds_court':
-                return controlsClanCapitalOrTwo('unicorn', 'purpleunicorn');
-            case 'great_northern_wall':
-                return controlsClanCapitalOrTwo('dragon', 'greendragon');
-            case 'lair_of_secrets':
-                return controlsClanCapitalOrTwo('scorpion', 'redscorpion');
-            case 'last_line':
-                return controlsClanCapitalOrTwo('crab', 'graycrab');
-            case 'fields_of_battle':
-                return controlsClanCapitalOrTwo('lion', 'yellowlion');
-            case 'great_library':
-                return controlsClanCapitalOrTwo('phoenix', 'orangephoenix');
-            case 'rice_of_the_empire':
-                return controlsClanCapitalOrTwo('crane', 'lightbluecrane');
-            case 'emerald_of_the_empire':
-                return this.hasConnectedProvinceGroup(controlled, 6, 3);
-            case 'path_of_the_sail':
-                return controlledProvinceIds.filter(id => COASTAL_PROVINCES.has(id)).length >= 6;
-            case 'reclaiming_lost_lands':
-                return [...SHADOWLANDS_PROVINCES].every(id => controlled.has(id));
-            case 'path_of_humanity':
-                return hasFewestProvinces;
-            case 'web_of_influence':
-                return new Set(controlledProvinceIds.map(id => PROVINCE_REGIONS[id])).size >= 7;
-        }
+        return isSecretObjectiveAchieved(objectiveId, controlledProvinceIds, hasFewestProvinces);
     }
 
     private hasConnectedProvinceGroup(
@@ -619,37 +370,7 @@ export class RoomObject {
         provinceCount: number,
         regionCount: number
     ): boolean {
-        const visitedGroups = new Set<string>();
-        const canComplete = (selected: Set<string>): boolean => {
-            const key = [...selected].sort().join('|');
-            if (visitedGroups.has(key))
-                return false;
-            visitedGroups.add(key);
-
-            const selectedRegions = new Set([...selected].map(id => PROVINCE_REGIONS[id]));
-            if (selectedRegions.size > regionCount)
-                return false;
-            if (selected.size === provinceCount)
-                return selectedRegions.size === regionCount;
-
-            const frontier = new Set(
-                [...selected].flatMap(id => adjacentProvinceIds(id))
-                    .filter(id => controlledProvinceIds.has(id) && !selected.has(id))
-            );
-            for (const provinceId of frontier) {
-                const next = new Set(selected);
-                next.add(provinceId);
-                if (canComplete(next))
-                    return true;
-            }
-            return false;
-        };
-
-        for (const provinceId of controlledProvinceIds) {
-            if (canComplete(new Set([provinceId])))
-                return true;
-        }
-        return false;
+        return hasConnectedProvinceGroup(controlledProvinceIds, provinceCount, regionCount);
     }
 
     private async setRevealReady(request: Request, room: StoredRoom): Promise<Response> {
@@ -1028,11 +749,7 @@ export class RoomObject {
     }
 
     private isOrderProtectedByBlessing(game: StoredGame, orderId: string): boolean {
-        return game.orders.some(candidate =>
-            candidate.token.type === 'blessing' &&
-            candidate.target.kind === 'order' &&
-            candidate.target.id === orderId
-        );
+        return hasAttachedBlessing(game, orderId);
     }
 
     private async placeOrder(request: Request, room: StoredRoom): Promise<Response> {
@@ -2264,10 +1981,14 @@ export class RoomObject {
                 return false;
         }
 
-        if (target.kind === 'land-border' || target.kind === 'sea-border') {
-            if (game.orders.some(order => order.target.kind === target.kind && order.target.id === target.id))
+        if (target.kind === 'land-border') {
+            // A border may hold one attack in each direction.  Only a second
+            // order aimed at the same province is a duplicate placement.
+            if (hasLandOrderInDirection(game, target.id, target.provinceId))
                 return false;
         }
+        if (target.kind === 'sea-border' && hasSeaBorderOrder(game, target.id))
+            return false;
 
         if (token.type === 'blank') {
             if (target.kind === 'province')
@@ -2610,43 +2331,15 @@ export class RoomObject {
     }
 
     private findPlayer(request: Request, room: StoredRoom): StoredPlayer | undefined {
-        const token = request.headers.get('x-player-token');
-        return room.players.find(player => player.token === token);
+        return findPlayer(request, room);
     }
 
     private requirePlayer(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.findPlayer(request, room);
-        if (!player)
-            throw new RequestError(401, 'Сессия игрока не найдена');
-        return player;
+        return requirePlayer(request, room);
     }
 
     private requireHost(request: Request, room: StoredRoom): StoredPlayer {
-        const player = this.requirePlayer(request, room);
-        if (!player.isHost)
-            throw new RequestError(403, 'Это действие доступно только хозяину комнаты');
-        return player;
-    }
-
-    private ensureLobby(room: StoredRoom): void {
-        if (room.status !== 'lobby')
-            throw new RequestError(400, 'Игра уже запущена');
-    }
-
-    private createHuman(name: string, isHost: boolean): StoredPlayer {
-        const normalizedName = name?.trim().slice(0, 24);
-        if (!normalizedName)
-            throw new RequestError(400, 'Введите имя игрока');
-
-        return {
-            id: crypto.randomUUID(),
-            token: crypto.randomUUID(),
-            name: normalizedName,
-            kind: 'human',
-            isHost,
-            isReady: false,
-            clanId: null
-        };
+        return requireHost(request, room);
     }
 
     private toPublicState(room: StoredRoom, viewer?: StoredPlayer): RoomState {
@@ -2798,7 +2491,7 @@ export class RoomObject {
     }
 
     private toSession(roomCode: string, player: StoredPlayer) {
-        return { roomCode, playerId: player.id, playerToken: player.token };
+        return toPlayerSession(roomCode, player);
     }
 
     private save(room: StoredRoom): Promise<void> {
