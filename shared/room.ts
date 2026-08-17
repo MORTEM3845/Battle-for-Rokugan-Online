@@ -22,6 +22,7 @@ export type ProvinceSpecial = 'peace' | 'scorched';
 export type ActionCardType = 'scout' | 'shugenja';
 export type ClanActionType = 'scorpion-peek' | 'unicorn-swap';
 export type GameLogEventType = 'round' | 'reveal' | 'raid' | 'diplomacy' | 'battle' | 'control' | 'defense' | 'card' | 'score';
+export type ResolutionStepKind = 'reveal' | 'raid' | 'diplomacy' | 'battle' | 'summary';
 
 export interface ClanRuleDefinition {
     name: string;
@@ -152,6 +153,21 @@ export interface GameLogEntry {
     playerId?: string;
 }
 
+export interface ResolutionStepView {
+    id: string;
+    kind: ResolutionStepKind;
+    title: string;
+    provinceId?: string;
+    messages: string[];
+}
+
+export interface ResolutionSequenceView {
+    currentIndex: number;
+    total: number;
+    currentStep: ResolutionStepView;
+    steps: Array<Pick<ResolutionStepView, 'id'>>;
+}
+
 export interface GameViewState {
     stage: GameStage;
     round: number;
@@ -173,6 +189,7 @@ export interface GameViewState {
     secretObjective: SecretObjectiveDefinition | null;
     secretObjectiveAchieved: boolean;
     clanActionPending: ClanActionType | null;
+    resolution: ResolutionSequenceView | null;
     results: GameResultView[] | null;
 }
 

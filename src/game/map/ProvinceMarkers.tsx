@@ -2,7 +2,8 @@ import {
     PROVINCE_BASE_DEFENSE, PROVINCE_CENTERS, PROVINCE_HONOR, PROVINCE_IDS, PROVINCE_NAMES
 } from '../../../shared/map';
 import { CLANS, type GameViewState, type RoomPlayer } from '../../../shared/room';
-import { CLAN_COLORS, CLAN_MON_ASSET } from '../presentation';
+import { ClanMon } from '../ClanMon';
+import { CLAN_COLORS } from '../presentation';
 import { markerStyle } from './geometry';
 
 interface ProvinceMarkerProps {
@@ -25,7 +26,7 @@ export function ControlMarkers({ game, playersById, hoveredPlayerId }: ProvinceM
             style={markerStyle(point.x, point.y, color)}
             title={`${PROVINCE_NAMES[provinceId]} · принадлежит клану ${clanName} (${player.name}) · ⭐ ${PROVINCE_HONOR[provinceId] ?? 0}`}>
             {player.clanId
-                ? <img className="control-marker-mon" src={CLAN_MON_ASSET[player.clanId]} alt="" />
+                ? <ClanMon clanId={player.clanId} className="control-marker-mon" />
                 : '?'}
         </span>;
     })}</>;

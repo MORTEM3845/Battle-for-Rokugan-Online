@@ -28,7 +28,7 @@ export function LobbyRules() {
     const tokens = ru ? RULE_TOKENS_RU : RULE_TOKENS_EN;
 
     return <section className="panel lobby-rules-panel">
-        <details open>
+        <details>
             <summary className="rules-summary">
                 <span className="rules-summary-mark" aria-hidden="true">?</span>
                 <span><small>{ru ? 'КРАТКИЙ СПРАВОЧНИК' : 'QUICK REFERENCE'}</small><strong>{ru ? 'Правила и жетоны' : 'Rules & tokens'}</strong></span>

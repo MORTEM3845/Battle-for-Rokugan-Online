@@ -1,6 +1,6 @@
 import { CLANS, CLAN_RULES, type ClanId, type PlayerSession, type RoomPlayer, type RoomState } from '../../shared/room';
 import { LobbyRules } from './LobbyRules';
-import { CLAN_MON } from '../game/presentation';
+import { ClanMon } from '../game/ClanMon';
 import { useLanguage } from '../i18n';
 import { navigate } from '../lib/navigation';
 import { lobbyApi } from './api';
@@ -66,7 +66,7 @@ export function LobbyScreen({ room, currentPlayer, session, busy, error, run }: 
                     const en = CLAN_EN[clan.id];
                     return <button key={clan.id} className={`clan-card detailed-clan-card clan-${clan.id} ${selected ? 'selected' : ''}`}
                         disabled={disabled} onClick={() => void run(() => lobbyApi.selectClan(session, clan.id))}>
-                        <span className="clan-card-mon" aria-hidden="true">{CLAN_MON[clan.id]}</span>
+                        <ClanMon clanId={clan.id} className="clan-card-mon" />
                         <span className="clan-card-heading"><strong>{language === 'ru' ? clan.name : en.name}</strong>
                             <em>{owner ? `${t('clan.chosenBy')}: ${owner.name}` : t('room.free')}</em></span>
                         <span className="clan-card-rule"><b>{language === 'ru' ? rule.name : en.rule}</b>
@@ -108,7 +108,9 @@ function PlayerCard({ player, removable, removeText, onRemove }: {
     const { language, t } = useLanguage();
     const clan = CLANS.find(item => item.id === player.clanId);
     return <article className="player-card">
-        <div className="player-avatar">{player.kind === 'bot' ? 'AI' : player.name.slice(0, 1).toUpperCase()}</div>
+        {player.clanId
+            ? <ClanMon clanId={player.clanId} className="player-avatar player-clan-avatar" />
+            : <div className="player-avatar">{player.kind === 'bot' ? 'AI' : player.name.slice(0, 1).toUpperCase()}</div>}
         <div className="player-info">
             <strong>{player.name}</strong>
             <span>{player.isHost ? language === 'ru' ? 'Хозяин · ' : 'Host · ' : ''}{player.kind === 'bot' ? language === 'ru' ? 'Бот' : 'Bot' : language === 'ru' ? 'Игрок' : 'Player'}</span>

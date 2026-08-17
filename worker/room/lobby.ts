@@ -3,7 +3,7 @@ import { randomItem } from './collections';
 import { RoomRequestError } from './http';
 import type { StoredPlayer, StoredRoom } from './types';
 
-export const ROOM_SCHEMA_VERSION = 5;
+export const ROOM_SCHEMA_VERSION = 6;
 const ALL_CLANS: ClanId[] = ['crab', 'crane', 'dragon', 'lion', 'phoenix', 'scorpion', 'unicorn'];
 
 export function createLobby(code: string, playerName: string | undefined): { room: StoredRoom; player: StoredPlayer } {

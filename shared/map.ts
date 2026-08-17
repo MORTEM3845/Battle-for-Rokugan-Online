@@ -25,7 +25,7 @@ interface ProvinceDefinition extends MapPoint {
  * Province IDs have the form:
  *   <territory>_<position inside territory>_<position on map>
  *
- * A clan capital is always position 1 inside its territory. The final
+ * The middle number is the province's printed honor value. The final
  * two-digit number follows the map from top to bottom and left to right,
  * with the Dragon capital kept as the starting province (`..._01`).
  */
@@ -62,8 +62,28 @@ export const PROVINCES: ProvinceDefinition[] = [
     { id: 'lightbluecrane_province_3_18', legacyId: 'province-30', name: 'Земли клана Журавля', x: 489, y: 812 }
 ];
 
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV'];
+const territoryId = (provinceId: string) => provinceId.replace(/_(?:capital|province)_\d+_\d+$/, '');
+const territoryProvinceNumbers = new Map<string, string>();
+
+for (const province of PROVINCES) {
+    const siblings = PROVINCES
+        .filter(candidate => territoryId(candidate.id) === territoryId(province.id))
+        .sort((left, right) => {
+            const leftCapital = left.id.includes('_capital_') ? 0 : 1;
+            const rightCapital = right.id.includes('_capital_') ? 0 : 1;
+            return leftCapital - rightCapital ||
+                Number(left.id.slice(-2)) - Number(right.id.slice(-2));
+        });
+    territoryProvinceNumbers.set(
+        province.id,
+        ROMAN_NUMERALS[siblings.findIndex(candidate => candidate.id === province.id)] ??
+            String(siblings.findIndex(candidate => candidate.id === province.id) + 1)
+    );
+}
+
 export const PROVINCE_NAMES: Record<string, string> = Object.fromEntries(
-    PROVINCES.map(province => [province.id, province.name])
+    PROVINCES.map(province => [province.id, `${province.name} ${territoryProvinceNumbers.get(province.id)}`])
 );
 
 export type RegionId =
@@ -100,8 +120,7 @@ const REGION_NAMES: Record<RegionId, string> = {
     blackshadowlandssouth: 'Южные Земли Теней'
 };
 
-const provinceRegionId = (provinceId: string): RegionId =>
-    provinceId.replace(/_(?:capital|province)_\d+_\d+$/, '') as RegionId;
+const provinceRegionId = (provinceId: string): RegionId => territoryId(provinceId) as RegionId;
 
 export const PROVINCE_REGIONS: Record<string, RegionId> = Object.fromEntries(
     PROVINCES.map(province => [province.id, provinceRegionId(province.id)])

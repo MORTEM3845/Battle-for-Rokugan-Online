@@ -12,7 +12,11 @@ export function GameHud({ room, currentPlayerId, onPlayerHover }: GameHudProps) 
     const game = room.game!;
     const firstPlayer = room.players.find(player => player.id === game.firstPlayerId);
     return <header className="game-hud">
-        <div className="round-summary"><span className="game-mon">戦</span><div>
+        <div className="round-summary"><button className="copy-room-button room-code-button"
+            onClick={() => navigator.clipboard.writeText(`${location.origin}/room/${room.code}`)}
+            aria-label={`Скопировать ссылку на комнату ${room.code}`} title="Скопировать ссылку на комнату">
+            {room.code}
+        </button><div>
             <p>{game.stage === 'setup' ? 'Подготовка к игре' : `Раунд ${game.round} / 5`}</p>
             <strong>{PHASE_LABELS[game.phase]}</strong>
         </div></div>
@@ -22,9 +26,6 @@ export function GameHud({ room, currentPlayerId, onPlayerHover }: GameHudProps) 
                 current={player.id === currentPlayerId} active={player.id === game.turnPlayerId}
                 first={player.id === game.firstPlayerId} onHover={onPlayerHover} />)}
         </div>
-        <button className="copy-room-button" onClick={() => navigator.clipboard.writeText(`${location.origin}/room/${room.code}`)}>
-            Комната {room.code}
-        </button>
     </header>;
 }
 

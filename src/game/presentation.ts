@@ -6,10 +6,6 @@ export const CLAN_COLORS: Record<ClanId, string> = {
     phoenix: '#de7338', scorpion: '#be3f3c', unicorn: '#8e63bb'
 };
 
-export const CLAN_MON: Record<ClanId, string> = {
-    crab: '蟹', crane: '鶴', dragon: '龍', lion: '獅', phoenix: '鳳', scorpion: '蠍', unicorn: '麒'
-};
-
 export const CLAN_MON_ASSET: Record<ClanId, string> = {
     crab: '/assets/clans/crab.png', crane: '/assets/clans/crane.png', dragon: '/assets/clans/dragon.png',
     lion: '/assets/clans/lion.png', phoenix: '/assets/clans/phoenix.png', scorpion: '/assets/clans/scorpion.png',

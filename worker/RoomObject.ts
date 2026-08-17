@@ -30,9 +30,13 @@ import {
     type GameResultView,
     type OrderTarget,
     type PlacedOrderView,
+    type ResolutionStepKind,
     type RoomState
 } from '../shared/room';
-import type { Env, StoredBattleToken, StoredGame, StoredPlacedOrder, StoredPlayer, StoredPlayerGame, StoredRoom } from './room/types';
+import type {
+    Env, StoredBattleToken, StoredGame, StoredPlacedOrder, StoredPlayer, StoredPlayerGame,
+    StoredResolutionStep, StoredRoom
+} from './room/types';
 import { randomItem, shuffled } from './room/collections';
 import { RoomRequestError as RequestError, jsonResponse as json } from './room/http';
 import {
@@ -241,6 +245,7 @@ export class RoomObject {
             attemptedAttackProvinceIds: [],
             cancelledAttackProvinceIds: [],
             log: [],
+            resolution: null,
             results: null
         };
 
@@ -269,6 +274,11 @@ export class RoomObject {
             this.skipPendingClanActions(room, host);
             this.resolveRound(room);
         } else if (game.phase === 'resolution') {
+            if (game.resolution && game.resolution.currentIndex < game.resolution.steps.length - 1) {
+                game.resolution.currentIndex++;
+                await this.save(room);
+                return json(this.toPublicState(room, host));
+            }
             if (game.round >= 5) {
                 game.stage = 'finished';
                 game.phase = 'finished';
@@ -1301,6 +1311,7 @@ export class RoomObject {
         game.orders = [];
         game.attemptedAttackProvinceIds = [];
         game.cancelledAttackProvinceIds = [];
+        game.resolution = null;
 
         for (const player of room.players) {
             const playerGame = game.players[player.id];
@@ -1376,6 +1387,28 @@ export class RoomObject {
             throw new RequestError(400, 'Приказы ещё нельзя исполнять');
 
         const activeOrderIds = new Set(game.orders.map(order => order.id));
+        const baseLogLength = game.log.length;
+        game.resolution = {
+            currentIndex: 0,
+            baseLogLength,
+            orders: game.orders.map(order => ({
+                ...order,
+                token: { ...order.token },
+                target: { ...order.target }
+            })),
+            steps: []
+        };
+        this.addLog(game, 'reveal', 'Все приказы раскрыты. Ведущий начинает исполнение жетонов по очереди.');
+        this.captureResolutionStep(
+            game,
+            activeOrderIds,
+            'reveal',
+            'Все приказы раскрыты',
+            undefined,
+            baseLogLength
+        );
+
+        const blankLogStart = game.log.length;
         const blankOrders = game.orders.filter(order => order.token.type === 'blank');
         const lionDefenseBlanks = blankOrders.filter(order => this.isLionDefenseBlank(room, order));
         for (const order of blankOrders) {
@@ -1390,6 +1423,15 @@ export class RoomObject {
                 game,
                 'reveal',
                 `🦁 Защитный блеф Льва остаётся в бою с силой 2: ${lionDefenseBlanks.length}.`
+            );
+        if (game.log.length > blankLogStart)
+            this.captureResolutionStep(
+                game,
+                activeOrderIds,
+                'reveal',
+                'Пустые жетоны проверены',
+                undefined,
+                blankLogStart
             );
 
         const raids = game.orders.filter(order =>
@@ -1419,6 +1461,7 @@ export class RoomObject {
             const provinceId = raid.target.kind === 'province' ? raid.target.id : null;
             if (!provinceId)
                 continue;
+            const stepLogStart = game.log.length;
 
             if (!validRaidOrderIds.has(raid.id)) {
                 activeOrderIds.delete(raid.id);
@@ -1429,6 +1472,14 @@ export class RoomObject {
                     `«${PROVINCE_NAMES[provinceId]}» не сработал: рядом нет его владений или синоби.`,
                     provinceId,
                     raid.playerId
+                );
+                this.captureResolutionStep(
+                    game,
+                    activeOrderIds,
+                    'raid',
+                    `Погром: ${PROVINCE_NAMES[provinceId]}`,
+                    provinceId,
+                    stepLogStart
                 );
                 continue;
             }
@@ -1453,6 +1504,14 @@ export class RoomObject {
                 provinceId,
                 raid.playerId
             );
+            this.captureResolutionStep(
+                game,
+                activeOrderIds,
+                'raid',
+                `Провинция разорена: ${PROVINCE_NAMES[provinceId]}`,
+                provinceId,
+                stepLogStart
+            );
         }
 
         for (const diplomacy of game.orders.filter(order =>
@@ -1461,6 +1520,7 @@ export class RoomObject {
             const provinceId = diplomacy.target.kind === 'province' ? diplomacy.target.id : null;
             if (!provinceId)
                 continue;
+            const stepLogStart = game.log.length;
 
             const removedOrderIds = this.orderIdsTouchingProvince(game, activeOrderIds, provinceId);
             const removedOrders = game.orders.filter(order => removedOrderIds.has(order.id));
@@ -1477,6 +1537,14 @@ export class RoomObject {
                 provinceId,
                 diplomacy.playerId
             );
+            this.captureResolutionStep(
+                game,
+                activeOrderIds,
+                'diplomacy',
+                `Заключён мир: ${PROVINCE_NAMES[provinceId]}`,
+                provinceId,
+                stepLogStart
+            );
         }
 
         this.resolveBattles(room, activeOrderIds);
@@ -1484,13 +1552,23 @@ export class RoomObject {
         game.phase = 'resolution';
         game.turnPlayerId = null;
         game.readyPlayerIds = [];
+        const summaryLogStart = game.log.length;
         this.addLog(game, 'round', `Исполнение приказов раунда ${game.round} завершено.`);
+        this.captureResolutionStep(
+            game,
+            new Set(),
+            'summary',
+            `Итог раунда ${game.round}`,
+            undefined,
+            summaryLogStart
+        );
     }
 
     private resolveBattles(room: StoredRoom, activeOrderIds: Set<string>): void {
         const game = this.requireGame(room);
         const combatTypes: BattleTokenType[] = ['army', 'fleet', 'shinobi'];
         const strengthByProvince = new Map<string, Map<string, number>>();
+        const battleLogStart = game.log.length;
 
         for (const order of game.orders) {
             const lionDefenseBlank = this.isLionDefenseBlank(room, order);
@@ -1531,6 +1609,7 @@ export class RoomObject {
 
         const ownersBeforeBattles = { ...game.provinces };
         const attemptedAttackProvinceIds = new Set(game.attemptedAttackProvinceIds ?? []);
+        let stepLogStart = battleLogStart;
         for (const [provinceId, playerStrengths] of strengthByProvince) {
             const defenderId = ownersBeforeBattles[provinceId];
             const defenderTokenStrength = defenderId ? playerStrengths.get(defenderId) ?? 0 : 0;
@@ -1559,6 +1638,8 @@ export class RoomObject {
                     );
                     this.rewardDefense(room, provinceId, defenderId, reason);
                 }
+                this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
+                stepLogStart = game.log.length;
                 continue;
             }
 
@@ -1649,6 +1730,8 @@ export class RoomObject {
                         provinceId
                     );
                 }
+                this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
+                stepLogStart = game.log.length;
                 continue;
             }
 
@@ -1671,6 +1754,8 @@ export class RoomObject {
                 );
                 if (defenderId)
                     this.rewardDefense(room, provinceId, defenderId, 'атака не преодолела защиту');
+                this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
+                stepLogStart = game.log.length;
                 continue;
             }
 
@@ -1691,6 +1776,8 @@ export class RoomObject {
                 provinceId,
                 winnerId
             );
+            this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
+            stepLogStart = game.log.length;
         }
 
         for (const provinceId of attemptedAttackProvinceIds) {
@@ -1701,6 +1788,7 @@ export class RoomObject {
             if (!defenderId || game.provinces[provinceId] !== defenderId)
                 continue;
 
+            const cancelledLogStart = game.log.length;
             this.addLog(
                 game,
                 'battle',
@@ -1709,8 +1797,62 @@ export class RoomObject {
                 defenderId
             );
             this.rewardDefense(room, provinceId, defenderId, 'атака сорвана до боя');
+            this.finishBattleResolutionStep(game, activeOrderIds, provinceId, cancelledLogStart);
         }
         game.attemptedAttackProvinceIds = [];
+    }
+
+    private finishBattleResolutionStep(
+        game: StoredGame,
+        activeOrderIds: Set<string>,
+        provinceId: string,
+        logStart: number
+    ): void {
+        const resolvedOrderIds = new Set(game.orders
+            .filter(order => activeOrderIds.has(order.id) && this.battleProvinceId(order) === provinceId)
+            .map(order => order.id));
+        for (const blessing of game.orders) {
+            if (activeOrderIds.has(blessing.id) &&
+                blessing.token.type === 'blessing' &&
+                blessing.target.kind === 'order' &&
+                resolvedOrderIds.has(blessing.target.id))
+                resolvedOrderIds.add(blessing.id);
+        }
+        this.captureResolutionStep(
+            game,
+            activeOrderIds,
+            'battle',
+            `Исход боя: ${PROVINCE_NAMES[provinceId]}`,
+            provinceId,
+            logStart
+        );
+        for (const orderId of resolvedOrderIds)
+            activeOrderIds.delete(orderId);
+    }
+
+    private captureResolutionStep(
+        game: StoredGame,
+        activeOrderIds: Set<string>,
+        kind: ResolutionStepKind,
+        title: string,
+        provinceId: string | undefined,
+        logStart: number
+    ): void {
+        const resolution = game.resolution;
+        if (!resolution)
+            return;
+        const step: StoredResolutionStep = {
+            id: crypto.randomUUID(),
+            kind,
+            title,
+            provinceId,
+            logEntryIds: game.log.slice(logStart).map(entry => entry.id),
+            provinces: { ...game.provinces },
+            defenseBonuses: { ...game.defenseBonuses },
+            provinceSpecials: { ...game.provinceSpecials },
+            activeOrderIds: [...activeOrderIds]
+        };
+        resolution.steps.push(step);
     }
 
     private rewardDefense(room: StoredRoom, provinceId: string, defenderId: string, reason: string): void {
@@ -2205,6 +2347,10 @@ export class RoomObject {
                 }
             }
         }
+        if (game.resolution === undefined) {
+            game.resolution = null;
+            changed = true;
+        }
         if (game.results === undefined) {
             game.results = null;
             changed = true;
@@ -2345,15 +2491,31 @@ export class RoomObject {
     private toPublicState(room: StoredRoom, viewer?: StoredPlayer): RoomState {
         const game = room.game;
         const pendingClanAction = game ? this.pendingClanAction(room) : undefined;
+        const resolution = game?.phase === 'resolution' ? game.resolution : null;
+        const resolutionIndex = resolution
+            ? Math.min(resolution.currentIndex, Math.max(0, resolution.steps.length - 1))
+            : 0;
+        const resolutionStep = resolution?.steps[resolutionIndex];
+        const displayedProvinces = resolutionStep?.provinces ?? game?.provinces;
+        const displayedDefenseBonuses = resolutionStep?.defenseBonuses ?? game?.defenseBonuses;
+        const displayedProvinceSpecials = resolutionStep?.provinceSpecials ?? game?.provinceSpecials;
+        const displayedOrders = resolution && resolutionStep
+            ? resolution.orders.filter(order => resolutionStep.activeOrderIds.includes(order.id))
+            : game?.orders ?? [];
+        const visibleResolutionLogIds = resolution
+            ? new Set(resolution.steps
+                .slice(0, resolutionIndex + 1)
+                .flatMap(step => step.logEntryIds))
+            : null;
         let secretObjectiveAchieved = false;
         if (game && viewer) {
             const objectiveId = game.players[viewer.id]?.secretObjectiveId;
             if (objectiveId) {
                 const provinceCounts = Object.fromEntries(room.players.map(player => [
                     player.id,
-                    PROVINCE_IDS.filter(id => game.provinces[id] === player.id).length
+                    PROVINCE_IDS.filter(id => displayedProvinces?.[id] === player.id).length
                 ]));
-                const controlledProvinceIds = PROVINCE_IDS.filter(id => game.provinces[id] === viewer.id);
+                const controlledProvinceIds = PROVINCE_IDS.filter(id => displayedProvinces?.[id] === viewer.id);
                 const fewestProvinceCount = Math.min(...Object.values(provinceCounts));
                 secretObjectiveAchieved = this.isSecretObjectiveAchieved(
                     objectiveId,
@@ -2382,7 +2544,8 @@ export class RoomObject {
                         stockCount: playerGame.stock.length,
                         discardCount: playerGame.discard.length,
                         placedCount: playerGame.roundPlacedCount,
-                        provinceCount: Object.values(game.provinces).filter(owner => owner === player.id).length,
+                        provinceCount: Object.values(displayedProvinces ?? game.provinces)
+                            .filter(owner => owner === player.id).length,
                         setupRemaining: playerGame.setupRemaining,
                         hasSecretObjective: !!playerGame.secretObjectiveId,
                         isRonin: playerGame.isRonin,
@@ -2391,18 +2554,21 @@ export class RoomObject {
                         mustReturnToken: playerGame.mustReturnToken
                     };
                 }),
-                provinces: game.provinces,
-                defenseBonuses: game.defenseBonuses,
-                provinceSpecials: game.provinceSpecials,
+                provinces: displayedProvinces ?? game.provinces,
+                defenseBonuses: displayedDefenseBonuses ?? game.defenseBonuses,
+                provinceSpecials: displayedProvinceSpecials ?? game.provinceSpecials,
                 readyPlayerIds: game.readyPlayerIds,
-                orders: game.orders.map(order => this.toPublicOrder(
+                orders: displayedOrders.map(order => this.toPublicOrder(
                     order,
                     game.phase,
                     viewer?.id,
                     viewer ? game.players[viewer.id]?.scoutedOrderIds ?? [] : [],
                     !!pendingClanAction
                 )),
-                log: game.log,
+                log: visibleResolutionLogIds
+                    ? game.log.filter((entry, index) =>
+                        index < resolution!.baseLogLength || visibleResolutionLogIds.has(entry.id))
+                    : game.log,
                 hand: viewer ? game.players[viewer.id]?.hand ?? [] : [],
                 tokenPool: viewer ? this.toTokenPoolView(game, viewer.id) : [],
                 actionCards: viewer
@@ -2423,6 +2589,20 @@ export class RoomObject {
                     : null,
                 secretObjectiveAchieved,
                 clanActionPending: pendingClanAction?.type ?? null,
+                resolution: resolution && resolutionStep ? {
+                    currentIndex: resolutionIndex,
+                    total: resolution.steps.length,
+                    currentStep: {
+                        id: resolutionStep.id,
+                        kind: resolutionStep.kind,
+                        title: resolutionStep.title,
+                        provinceId: resolutionStep.provinceId,
+                        messages: resolutionStep.logEntryIds
+                            .map(id => game.log.find(entry => entry.id === id)?.message)
+                            .filter((message): message is string => !!message)
+                    },
+                    steps: resolution.steps.map(step => ({ id: step.id }))
+                } : null,
                 results: game.results
             } : null
         };

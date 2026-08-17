@@ -44,6 +44,7 @@ h2 { margin-bottom: 4px; font-family: Georgia, serif; }
 .players-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
 .player-card { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 16px; border: 1px solid #514038; border-radius: 14px; background: #1b1512; }
 .player-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; font-weight: 800; background: #73332f; }
+.player-clan-avatar { border: 1px solid rgba(218, 187, 137, .42); background: radial-gradient(circle, rgba(248, 230, 192, .16), rgba(28, 19, 14, .82)); }
 .player-info { display: grid; gap: 3px; }
 .player-info span { color: #9f9187; font-size: 13px; }
 .status { padding: 5px 8px; border-radius: 999px; color: #b6a79b; background: #302722; font-size: 12px; }
@@ -54,6 +55,29 @@ h2 { margin-bottom: 4px; font-family: Georgia, serif; }
 .clan-card strong { font-family: Georgia, serif; font-size: 20px; }
 .clan-card span { margin-top: 5px; color: #b9a99d; font-size: 12px; }
 .clan-card.selected { outline: 2px solid #f1c07b; border-color: #f1c07b; }
+
+/* The rulebook crops have different transparent margins. These offsets center
+   their visible ink while keeping the same small optical padding for every mon. */
+.clan-mon { position: relative; display: inline-block; overflow: hidden; flex: 0 0 auto; }
+.clan-mon > img {
+    position: absolute;
+    top: var(--clan-mon-y, 0);
+    left: var(--clan-mon-x, 0);
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform: scale(var(--clan-mon-scale, 1));
+    transform-origin: center;
+    pointer-events: none;
+    user-select: none;
+}
+.clan-mon[data-clan="crab"] { --clan-mon-x: .37%; --clan-mon-y: 0%; --clan-mon-scale: .949; }
+.clan-mon[data-clan="crane"] { --clan-mon-x: 4.3%; --clan-mon-y: 2.34%; --clan-mon-scale: 1; }
+.clan-mon[data-clan="dragon"] { --clan-mon-x: 11.34%; --clan-mon-y: 2.43%; --clan-mon-scale: 1.037; }
+.clan-mon[data-clan="lion"] { --clan-mon-x: 12.73%; --clan-mon-y: 1.59%; --clan-mon-scale: 1.018; }
+.clan-mon[data-clan="phoenix"] { --clan-mon-x: .76%; --clan-mon-y: -1.51%; --clan-mon-scale: .966; }
+.clan-mon[data-clan="scorpion"] { --clan-mon-x: -4.26%; --clan-mon-y: -.39%; --clan-mon-scale: .991; }
+.clan-mon[data-clan="unicorn"] { --clan-mon-x: -10.25%; --clan-mon-y: -.39%; --clan-mon-scale: 1.009; }
 .clan-crab { box-shadow: inset 0 -50px 70px rgba(235, 235, 225, .28); }
 .clan-crane { box-shadow: inset 0 -50px 70px rgba(85, 157, 190, .25); }
 .clan-dragon { box-shadow: inset 0 -50px 70px rgba(52, 130, 78, .25); }

@@ -1,7 +1,7 @@
 import type { SecretObjectiveId } from '../../shared/objectives';
 import type {
     ActionCardType, BattleTokenView, GameLogEntry, GamePhase, GameResultView,
-    OrderTarget, ProvinceSpecial, RoomPlayer
+    OrderTarget, ProvinceSpecial, ResolutionStepKind, RoomPlayer
 } from '../../shared/room';
 
 export interface Env {
@@ -38,6 +38,25 @@ export interface StoredPlayerGame {
     mustReturnToken: boolean;
 }
 
+export interface StoredResolutionStep {
+    id: string;
+    kind: ResolutionStepKind;
+    title: string;
+    provinceId?: string;
+    logEntryIds: string[];
+    provinces: Record<string, string | null>;
+    defenseBonuses: Record<string, number>;
+    provinceSpecials: Record<string, ProvinceSpecial>;
+    activeOrderIds: string[];
+}
+
+export interface StoredResolutionSequence {
+    currentIndex: number;
+    baseLogLength: number;
+    orders: StoredPlacedOrder[];
+    steps: StoredResolutionStep[];
+}
+
 export interface StoredGame {
     stage: 'setup' | 'rounds' | 'finished';
     round: number;
@@ -55,6 +74,7 @@ export interface StoredGame {
     attemptedAttackProvinceIds: string[];
     cancelledAttackProvinceIds: string[];
     log: GameLogEntry[];
+    resolution: StoredResolutionSequence | null;
     results: GameResultView[] | null;
 }
 

@@ -10,7 +10,7 @@ interface TurnBannerProps {
 export function TurnBanner({ room, currentPlayerId }: TurnBannerProps) {
     const { language, t } = useLanguage();
     const game = room.game;
-    const hiddenByPhase = !game || game.phase === 'resolution' || game.phase === 'finished';
+    const hiddenByPhase = !game || game.phase === 'objectives' || game.phase === 'resolution' || game.phase === 'finished';
     const currentPlayer = room.players.find(player => player.id === currentPlayerId);
     const turnPlayer = room.players.find(player => player.id === game?.turnPlayerId);
     const currentStats = game?.players.find(player => player.playerId === currentPlayerId);

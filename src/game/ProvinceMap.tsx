@@ -29,11 +29,22 @@ import {
     type VisibleTokenType
 } from '../../shared/room';
 import provinceSvg from '../assets/rokugan-provinces.svg?raw';
+import { ClanMon } from './ClanMon';
 import { angleToward, markerStyle, orderPlacement, pointToward } from './map/geometry';
 import { ControlMarkers, DefenseMarkers, SpecialMarkers } from './map/ProvinceMarkers';
 import { provinceIsEligible } from './map/targeting';
 import { CLAN_COLORS, TOKEN_INFO } from './presentation';
 import type { SelectedClanAction } from './types';
+
+// Keep the artwork and the hit areas in one SVG coordinate system.  Rendering
+// the PNG as a separate transformed element allows rounding differences to
+// shift it away from the province paths at some viewport sizes.
+const combinedMapSvg = provinceSvg
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '')
+    .replace(
+        /<svg\b([^>]*)>/,
+        '<svg$1><image class="map-artwork" href="/assets/rokugan-map.png" x="-256" y="256" width="1536" height="1024" transform="rotate(-90 512 768)" preserveAspectRatio="none" />'
+    );
 
 interface ProvinceMapProps {
     game: GameViewState;
@@ -58,7 +69,7 @@ function findProvince(target: EventTarget | null): SVGPathElement | null {
 
 const ProvinceShapes = memo(forwardRef<HTMLDivElement>(function ProvinceShapes(_, ref) {
     return <div ref={ref} className="province-layer"
-        dangerouslySetInnerHTML={{ __html: provinceSvg }} />;
+        dangerouslySetInnerHTML={{ __html: combinedMapSvg }} />;
 }));
 
 export function ProvinceMap(props: ProvinceMapProps) {
@@ -88,6 +99,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
     const playersById = useMemo(() => Object.fromEntries(players.map(player => [player.id, player])), [players]);
     const currentPlayerGame = game.players.find(player => player.playerId === currentPlayerId);
     const currentPlayerIsRonin = currentPlayerGame?.isRonin ?? false;
+    const resolutionStep = game.resolution?.currentStep;
 
     useEffect(() => {
         const paths = layerRef.current?.querySelectorAll<SVGPathElement>('path[data-province-id]');
@@ -124,13 +136,10 @@ export function ProvinceMap(props: ProvinceMapProps) {
             path.dataset.provinceName = PROVINCE_NAMES[id];
             path.setAttribute('aria-label', tooltip);
 
-            const title = path.querySelector('title');
-            if (title)
-                title.textContent = tooltip;
-
             path.classList.toggle('is-owned', !!owner);
             path.classList.toggle('is-player-highlight', !!ownerId && ownerId === hoveredPlayerId);
             path.classList.toggle('is-valid-target', validControlTarget || (!orderPlacementDisabled && validOrderTarget));
+            path.classList.toggle('is-resolving', resolutionStep?.provinceId === id);
 
             if (owner?.clanId)
                 path.style.setProperty('--owner-color', CLAN_COLORS[owner.clanId]);
@@ -195,14 +204,23 @@ export function ProvinceMap(props: ProvinceMapProps) {
         onPointerMove={handleProvincePointerMove}
         onPointerLeave={() => setProvinceTooltip(null)}>
         <div className="rotated-map" onClick={handleMapClick}>
-            <img className="rokugan-map-image" src="/assets/rokugan-map.png" alt="Карта Рокугана" draggable={false} />
-
             <ProvinceShapes ref={layerRef} />
 
             <div className="map-markers">
                 <ControlMarkers game={game} playersById={playersById} hoveredPlayerId={hoveredPlayerId} />
                 <DefenseMarkers game={game} playersById={playersById} />
                 <SpecialMarkers game={game} />
+
+                {resolutionStep?.provinceId && PROVINCE_CENTERS[resolutionStep.provinceId] &&
+                    <span key={resolutionStep.id}
+                        className={`resolution-map-effect resolution-map-effect-${resolutionStep.kind}`}
+                        style={markerStyle(
+                            PROVINCE_CENTERS[resolutionStep.provinceId].x,
+                            PROVINCE_CENTERS[resolutionStep.provinceId].y
+                        )}
+                        aria-hidden="true">
+                        <i>{resolutionStep.kind === 'raid' ? '🔥' : resolutionStep.kind === 'diplomacy' ? '☮' : '⚔'}</i>
+                    </span>}
 
                 {LAND_BORDERS.flatMap(border => {
                     if (currentPlayerIsRonin) {
@@ -308,11 +326,15 @@ export function ProvinceMap(props: ProvinceMapProps) {
                                 !protectedByBlessing
                             : false;
                     const selectedForClanAction = selectedClanOrderIds.includes(order.id);
+                    const resolvingHere = !!resolutionStep?.provinceId &&
+                        (order.target.kind === 'province'
+                            ? order.target.id === resolutionStep.provinceId
+                            : order.target.provinceId === resolutionStep.provinceId);
                     const isInteractive = ((canBless || canUseActionCard) && !orderPlacementDisabled) ||
                         canUseClanAction;
 
                     return <button key={order.id}
-                        className={`placed-order placed-order-${order.type} ${protectedByBlessing ? 'is-blessed' : ''} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
+                        className={`placed-order placed-order-${order.type} ${protectedByBlessing ? 'is-blessed' : ''} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${resolvingHere ? 'is-resolving-order' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
                         style={markerStyle(placement.x, placement.y, color, placement.angle)}
                         disabled={!isInteractive}
                         onClick={() => canUseClanAction
@@ -354,7 +376,9 @@ export function ProvinceMap(props: ProvinceMapProps) {
         </div>}
 
         {selectedClanAction && <div className="target-legend clan-action-legend">
-            <b>{selectedClanAction === 'scorpion-peek' ? '🦂 Шёпот Скорпиона' : '🦄 Манёвр Единорога'}</b>
+            <b><ClanMon clanId={selectedClanAction === 'scorpion-peek' ? 'scorpion' : 'unicorn'}
+                className="clan-action-legend-mon" />
+                {selectedClanAction === 'scorpion-peek' ? 'Шёпот Скорпиона' : 'Манёвр Единорога'}</b>
             <span>{selectedClanAction === 'scorpion-peek'
                 ? 'Выберите закрытый и не защищённый благословением жетон соперника.'
                 : `Выберите два своих жетона · ${selectedClanOrderIds.length}/2`}</span>

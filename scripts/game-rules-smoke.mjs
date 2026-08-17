@@ -765,6 +765,26 @@ try {
         'Пустой жетон после исполнения должен вернуться в актив игрока'
     );
     assert.ok(!blankRoom.game.players.raider.stock.some(token => token.id === 'blank-token'));
+    assert.ok(blankRoom.game.resolution, 'Исполнение должно сохранить пошаговый сценарий раунда');
+    assert.equal(blankRoom.game.resolution.currentIndex, 0);
+    assert.deepEqual(
+        blankRoom.game.resolution.steps.map(step => step.kind),
+        ['reveal', 'reveal', 'summary'],
+        'Сценарий должен начинаться со вскрытия и заканчиваться итогом'
+    );
+    await requestRoomObject.advanceGame(
+        new Request('https://room/game/advance', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-player-token': 'raider-token'
+            },
+            body: JSON.stringify({ expectedPhase: 'resolution' })
+        }),
+        blankRoom
+    );
+    assert.equal(blankRoom.game.phase, 'resolution', 'Промежуточный клик не должен начинать новый раунд');
+    assert.equal(blankRoom.game.resolution.currentIndex, 1, 'Ведущий должен продвигать общий сценарий на один шаг');
 
     const futureRoom = createRaidFixture(false);
     futureRoom.schemaVersion = 999;

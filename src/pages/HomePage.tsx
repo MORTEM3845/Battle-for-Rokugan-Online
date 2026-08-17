@@ -38,36 +38,37 @@ export function HomePage() {
 
     return <main className="home-shell rokugan-home">
         <LanguageToggle className="home-language-toggle" />
-        <section className="home-hero panel">
+        <section className="home-hero">
             <div className="home-copy">
                 <p className="eyebrow">{t('home.eyebrow')}</p>
-                <h1 className="rokugan-title"><span aria-hidden="true">戦</span>{t('home.title')}</h1>
+                <h1 className="rokugan-title">{t('home.title')}</h1>
                 <p className="lead">{t('home.lead')}</p>
 
-                <label>{t('home.playerName')}
-                    <input value={name} maxLength={24} onChange={event => setName(event.target.value)}
-                        placeholder={t('home.playerPlaceholder')} />
-                </label>
-                <button className="primary home-primary" disabled={busy || !name.trim()}
-                    onClick={() => void createRoom()}>{t('home.create')}</button>
-
-                <div className="divider"><span>{t('home.joinDivider')}</span></div>
-
-                <div className="join-row">
-                    <label>{t('home.roomCode')}
-                        <input value={code} maxLength={6} onChange={event => setCode(event.target.value.toUpperCase())}
-                            onKeyDown={event => event.key === 'Enter' && openRoom()} placeholder="ABC234" />
+                <div className="home-actions">
+                    <label>{t('home.playerName')}
+                        <input value={name} maxLength={24} onChange={event => setName(event.target.value)}
+                            placeholder={t('home.playerPlaceholder')} />
                     </label>
-                    <button disabled={busy} onClick={openRoom}>{t('home.join')}</button>
+                    <button className="primary home-primary" disabled={busy || !name.trim()}
+                        onClick={() => void createRoom()}>{t('home.create')}</button>
+
+                    <div className="divider"><span>{t('home.joinDivider')}</span></div>
+
+                    <div className="join-row">
+                        <label>{t('home.roomCode')}
+                            <input value={code} maxLength={6} onChange={event => setCode(event.target.value.toUpperCase())}
+                                onKeyDown={event => event.key === 'Enter' && openRoom()} placeholder="ABC234" />
+                        </label>
+                        <button disabled={busy} onClick={openRoom}>{t('home.join')}</button>
+                    </div>
+                    {error && <p className="error">{error}</p>}
                 </div>
-                {error && <p className="error">{error}</p>}
                 <div className="home-links">
                     <button className="link-button" onClick={() => setFeedbackOpen(true)}>{t('home.feedback')}</button>
                 </div>
             </div>
 
             <figure className="home-map-preview">
-                <div className="map-glow" />
                 <img src="/assets/rokugan-map.png" alt={t('home.mapCaption')} />
                 <figcaption><span>{t('home.mapKicker')}</span><b>{t('home.mapCaption')}</b></figcaption>
             </figure>

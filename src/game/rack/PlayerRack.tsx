@@ -3,9 +3,10 @@ import {
     type GameViewState, type RoomPlayer
 } from '../../../shared/room';
 import type { SelectedClanAction } from '../types';
+import { ClanMon } from '../ClanMon';
 import { ClanBadge } from '../hud/PlayerIdentity';
 import { SecretObjectiveTab } from '../objectives/SecretObjectiveTab';
-import { CLAN_MON_ASSET, TOKEN_INFO, clanStyle } from '../presentation';
+import { TOKEN_INFO, clanStyle } from '../presentation';
 import { ActionCardHand } from './ActionCardHand';
 import { OrderToken } from './OrderToken';
 import { TokenInventory } from './TokenInventory';
@@ -47,7 +48,7 @@ export function PlayerRack(props: PlayerRackProps) {
         <div className="token-hand">
             {game.phase === 'setup' && <div className="setup-control-prompt">
                 <span className="control-token-sample" style={clanStyle(currentPlayer)}>{currentPlayer.clanId
-                    ? <img className="control-token-sample-mon" src={CLAN_MON_ASSET[currentPlayer.clanId]} alt="" />
+                    ? <ClanMon clanId={currentPlayer.clanId} className="control-token-sample-mon" />
                     : '?'}</span>
                 <div><b>{currentStats.setupRemaining} жетонов контроля</b><small>{canPlaceControl
                     ? 'Нажмите на любую свободную провинцию'
@@ -58,7 +59,7 @@ export function PlayerRack(props: PlayerRackProps) {
             {game.phase === 'placement' && currentPlayer.clanId === 'scorpion' &&
                 <button className={`clan-action-card scorpion-action ${selectedClanAction === 'scorpion-peek' ? 'is-selected' : ''}`}
                     disabled={busy || !canUseScorpionPeek} onClick={onToggleScorpion} title={CLAN_RULES.scorpion.ability}>
-                    <span>🦂</span><b>Подглядеть</b><em>{currentStats.clanAbilityUsed ? '✓' : '1×'}</em>
+                    <ClanMon clanId="scorpion" className="clan-action-card-mon" /><b>Подглядеть</b><em>{currentStats.clanAbilityUsed ? '✓' : '1×'}</em>
                 </button>}
             {game.phase !== 'setup' && game.phase !== 'finished' && game.hand.map(token => <OrderToken key={token.id} token={token}
                 selected={token.id === selectedToken?.id} returnMode={mustReturnDragonToken}

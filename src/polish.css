@@ -1,30 +1,30 @@
-.rokugan-home {
-    background:
-        radial-gradient(circle at 72% 40%, rgba(169, 50, 37, .18), transparent 30%),
-        radial-gradient(circle at top, #38251f 0, #171310 48%, #0e0c0b 100%);
+.rokugan-home, body:has(.lobby-page) {
+    isolation: isolate;
+    background-color: #11100e;
+    background-image: linear-gradient(rgba(9, 8, 7, .42), rgba(9, 8, 7, .78)), url('/assets/ui/rokugan-sumi-backdrop.png');
+    background-position: center;
+    background-size: cover;
+}
+body:has(.lobby-page) { background-attachment: fixed; }
+.rokugan-home::before {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    content: "";
+    background: radial-gradient(circle at 72% 42%, rgba(170, 87, 47, .15), transparent 34%);
+    pointer-events: none;
 }
 .rokugan-title {
     position: relative;
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    margin-bottom: 16px;
     font-family: "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", Georgia, serif;
     font-weight: 500;
-    letter-spacing: .015em;
-    text-shadow: 0 3px 0 #150b08, 0 8px 24px rgba(0, 0, 0, .55);
-}
-.rokugan-title > span {
-    width: 58px;
-    height: 58px;
-    flex: 0 0 auto;
-    display: grid;
-    place-items: center;
-    border: 2px solid rgba(237, 139, 105, .68);
-    border-radius: 50%;
-    color: #f2d5b0;
-    background: radial-gradient(circle, #a5322b, #4b1514 72%);
-    box-shadow: 0 0 0 7px rgba(159, 46, 39, .12), 0 10px 25px rgba(0, 0, 0, .45);
-    font: 30px serif;
+    font-size: clamp(48px, 5vw, 78px);
+    line-height: .98;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+    text-shadow: 0 3px 0 #150b08, 0 12px 34px rgba(0, 0, 0, .68);
+    animation: home-title-arrive .72s cubic-bezier(.22, 1, .36, 1) both;
 }
 .home-language-toggle, .room-language-toggle {
     position: fixed;
@@ -127,10 +127,8 @@
     place-items: center;
     border: 2px solid color-mix(in srgb, var(--clan-accent) 72%, white);
     border-radius: 50%;
-    color: #fff3dd;
-    background: color-mix(in srgb, var(--clan-accent) 42%, #17100d);
+    background: radial-gradient(circle, rgba(250, 231, 190, .14), color-mix(in srgb, var(--clan-accent) 18%, #17100d));
     box-shadow: 0 7px 18px rgba(0, 0, 0, .46);
-    font: 25px serif;
 }
 .clan-card-heading { min-width: 0; display: grid; gap: 5px; }
 .clan-card-heading strong { color: #f1e3ce; font: 24px Georgia, serif; }
@@ -200,12 +198,20 @@
     .detailed-clan-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 }
 @media (max-width: 620px) {
-    .rokugan-title { gap: 10px; }
-    .rokugan-title > span { width: 43px; height: 43px; font-size: 22px; }
+    .rokugan-title { margin-bottom: 8px; font-size: clamp(36px, 11vw, 48px); }
     .room-tools { top: 10px; right: 62px; }
     .ambient-player.compact-audio { width: 112px; }
     .detailed-clan-grid { grid-template-columns: 1fr; }
     .prominent-turn-banner { grid-template-columns: auto 1fr 30px; }
+}
+
+@keyframes home-title-arrive {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rokugan-title { animation: none; }
 }
 
 /* Flat sumi-e game-table skin. Game pieces and map artwork intentionally stay untouched. */
@@ -438,12 +444,20 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
     animation: none;
 }
 
-.room-chat.game .chat-fab,
+.room-chat-game .chat-fab,
 .room-chat .chat-fab {
     border-color: rgba(201, 166, 107, .55);
     border-radius: 3px;
     background: rgba(20, 18, 15, .96);
     box-shadow: 0 10px 24px rgba(0, 0, 0, .42);
+}
+
+.game-screen .round-summary .room-code-button {
+    flex: 0 0 auto;
+    justify-self: auto;
+    margin-left: 0;
+    font-weight: 900;
+    letter-spacing: .08em;
 }
 
 @media (max-width: 1180px) {
@@ -522,6 +536,7 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
     .game-screen .game-side-rail {
         min-height: 0;
         height: 100%;
+        grid-template-rows: max-content max-content;
         gap: 0;
         overflow-y: auto;
         border-left: 1px solid var(--sumi-line);
@@ -553,4 +568,23 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
     }
 
     .game-screen .objective-tab { top: -31px; }
+
+    /* Keep persistent utilities in the formerly unused right-hand HUD space. */
+    body:has(.game-screen) .room-tools {
+        top: 9px;
+        right: 120px;
+        bottom: auto;
+        left: auto;
+    }
+
+    body:has(.game-screen) .room-chat-game {
+        top: 9px;
+        right: 10px;
+        bottom: auto;
+    }
+
+    body:has(.game-screen) .room-chat-game .chat-panel {
+        top: 52px;
+        bottom: auto;
+    }
 }

@@ -1,4 +1,5 @@
 import type { GamePlayerView, GameViewState, RoomPlayer } from '../../../shared/room';
+import { ClanMon } from '../ClanMon';
 import { GameEventLog } from '../log/GameEventLog';
 import { PHASE_LABELS } from '../presentation';
 import { FinalScoreboard } from '../scoreboard/FinalScoreboard';
@@ -53,10 +54,10 @@ export function GamePhasePanel(props: GamePhasePanelProps) {
                     : game.clanActionPending === 'unicorn-swap'
                         ? 'Приказы пока закрыты: клан Единорога завершает манёвр перед вскрытием.'
                         : 'Все жетоны перевёрнуты. Изучите приказы соперников: исполнение начнётся, когда подтвердят все игроки.'}</p>
-                {scorpionActionPending && <ClanActionPanel icon="🦂" title="Шёпот Скорпиона"
+                {scorpionActionPending && <ClanActionPanel clanId="scorpion" title="Шёпот Скорпиона"
                     description="Выберите один закрытый жетон соперника на карте или пропустите способность."
                     button="Не подглядывать в этом раунде" busy={busy} onSkip={onSkipScorpion} />}
-                {unicornActionPending && <ClanActionPanel icon="🦄" title="Манёвр Единорога"
+                {unicornActionPending && <ClanActionPanel clanId="unicorn" title="Манёвр Единорога"
                     description={unicornSelectionCount === 0 ? 'Выберите первый свой жетон на карте' : 'Теперь выберите второй жетон — они поменяются местами'}
                     button="Оставить жетоны на местах" busy={busy} onSkip={onSkipUnicorn} />}
                 <div className="reveal-readiness">{players.map(player => {
@@ -70,23 +71,60 @@ export function GamePhasePanel(props: GamePhasePanelProps) {
                         onClick={onAdvance}>Продолжить без готовности всех</button>}
                 </div>
             </>}
-            {game.phase === 'resolution' && <p>Погромы, дипломатия и битвы рассчитаны. Изменения отмечены на карте, подробности — в журнале.</p>}
+            {game.phase === 'resolution' && game.resolution
+                ? <ResolutionPlayback game={game} isHost={currentPlayer.isHost} busy={busy} onAdvance={onAdvance} />
+                : game.phase === 'resolution' && <p>Исполнение приказов завершено. Подробности сохранены в журнале.</p>}
             {game.phase === 'finished' && <><p>Пятый раунд завершён. Победитель определяется по чести, затем по регионам и числу провинций.</p>
                 {game.results && <FinalScoreboard results={game.results} players={players} />}</>}
             {currentPlayer.isHost && game.phase === 'setup' && <button className="primary phase-action"
                 disabled={busy || !setupComplete} onClick={onAdvance}>{setupComplete ? 'Начать 1-й раунд' : 'Сначала закончите расстановку'}</button>}
-            {currentPlayer.isHost && game.phase === 'resolution' && <button className="primary phase-action" disabled={busy} onClick={onAdvance}>
-                {game.round === 5 ? 'Завершить игру' : `Перейти к раунду ${game.round + 1}`}
-            </button>}
         </aside>
         <GameEventLog entries={game.log} />
     </div>;
 }
 
-function ClanActionPanel({ icon, title, description, button, busy, onSkip }: {
-    icon: string; title: string; description: string; button: string; busy: boolean; onSkip: () => void;
+function ResolutionPlayback({ game, isHost, busy, onAdvance }: {
+    game: GameViewState;
+    isHost: boolean;
+    busy: boolean;
+    onAdvance: () => Promise<void>;
 }) {
-    return <div className="clan-action-panel"><b>{icon} {title}</b><span>{description}</span>
+    const resolution = game.resolution!;
+    const step = resolution.currentStep;
+    const isLastStep = resolution.currentIndex === resolution.total - 1;
+    const stepLabel = {
+        reveal: 'Вскрытие', raid: 'Погром', diplomacy: 'Дипломатия', battle: 'Битва', summary: 'Итог'
+    }[step.kind];
+
+    return <div className={`resolution-playback resolution-kind-${step.kind}`}>
+        <div className="resolution-progress" aria-label={`Этап ${resolution.currentIndex + 1} из ${resolution.total}`}>
+            {resolution.steps.map((item, index) => <span key={item.id}
+                className={`${index < resolution.currentIndex ? 'is-complete' : ''} ${index === resolution.currentIndex ? 'is-current' : ''}`}
+                aria-hidden="true" />)}
+        </div>
+        <div key={step.id} className="resolution-outcome" aria-live="polite">
+            <span className="resolution-step-label">{stepLabel} · {resolution.currentIndex + 1}/{resolution.total}</span>
+            <strong>{step.title}</strong>
+            <div className="resolution-messages">
+                {step.messages.length > 0
+                    ? step.messages.map((message, index) => <p key={`${step.id}-${index}`}>{message}</p>)
+                    : <p>Жетоны в этой территории исполнены, результат отмечен на карте.</p>}
+            </div>
+        </div>
+        {isHost
+            ? <button className="primary phase-action resolution-next" disabled={busy} onClick={onAdvance}>
+                {isLastStep
+                    ? game.round === 5 ? 'Завершить игру' : `Перейти к раунду ${game.round + 1}`
+                    : 'Показать следующий этап'}
+            </button>
+            : <p className="resolution-waiting">Ведущий показывает исполнение приказов всем игрокам.</p>}
+    </div>;
+}
+
+function ClanActionPanel({ clanId, title, description, button, busy, onSkip }: {
+    clanId: 'scorpion' | 'unicorn'; title: string; description: string; button: string; busy: boolean; onSkip: () => void;
+}) {
+    return <div className="clan-action-panel"><b><ClanMon clanId={clanId} className="clan-action-panel-mon" />{title}</b><span>{description}</span>
         <button className="phase-action force-resolution" disabled={busy} onClick={onSkip}>{button}</button>
     </div>;
 }
