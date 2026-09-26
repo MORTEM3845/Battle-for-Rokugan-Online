@@ -13,6 +13,8 @@
     "deploy": "npm run build && wrangler deploy",
     "deploy:dry": "npm run build && wrangler deploy --dry-run",
     "test:rules": "node scripts/game-rules-smoke.mjs",
+    "test:client": "node scripts/client-module-smoke.mjs",
+    "test:http": "node scripts/room-http-smoke.mjs",
     "typecheck": "tsc -b",
     "cf-typegen": "wrangler types"
   },

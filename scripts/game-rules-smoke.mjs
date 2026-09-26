@@ -190,12 +190,15 @@ try {
 
     const raidLog = withFleet.game.log.find(entry => entry.type === 'raid');
     const battleLog = withFleet.game.log.find(entry =>
-        entry.type === 'battle' && entry.message.includes('Расчёт боя')
+        entry.details?.includes('Расчёт боя')
     );
     assert.ok(raidLog?.message.includes('армия 5'));
     assert.ok(!raidLog?.message.includes('флот 2'));
-    assert.ok(battleLog?.message.includes('флот 2'));
-    assert.ok(!battleLog?.message.includes('армия 5'));
+    assert.ok(battleLog?.details.includes('флот 2'));
+    assert.ok(!battleLog?.details.includes('армия 5'));
+    assert.ok(battleLog?.message.includes('Общая сила стороны «Клан Скорпион»: 2'));
+    assert.ok(battleLog?.message.includes('Победа: Клан Скорпион!'));
+    assert.ok(!battleLog?.message.includes('флот 2'));
 
     const lionDefense = createRaidFixture(false);
     lionDefense.players.find(player => player.id === 'defender').clanId = 'lion';
@@ -217,6 +220,11 @@ try {
     roomObject.resolveRound(lionDefense);
     assert.equal(lionDefense.game.provinces[northShadowlands], 'defender');
     assert.equal(lionDefense.game.defenseBonuses[northShadowlands], 1);
+    const lionBattleLog = lionDefense.game.log.find(entry => entry.details);
+    assert.ok(lionBattleLog.message.includes('Общая сила стороны «Клан Лев»: 3'));
+    assert.ok(lionBattleLog.message.includes('Общая сила стороны «Клан Краб»: 2'));
+    assert.ok(lionBattleLog.message.includes('Победа: Клан Лев!'));
+    assert.ok(lionBattleLog.details.includes('пустой жетон 2'));
     assert.ok(
         lionDefense.game.players.defender.hand.some(token => token.id === 'lion-blank-token'),
         'Защитный блеф Льва должен иметь силу 2 и вернуться в актив'
@@ -237,6 +245,9 @@ try {
         'raider',
         'Журавль должен победить при равенстве атаки и защиты'
     );
+    const craneBattleLog = craneTie.game.log.find(entry => entry.details);
+    assert.ok(craneBattleLog.message.includes('Победа: Клан Журавль!'));
+    assert.ok(craneBattleLog.details.includes('Журавль побеждает при равенстве сил'));
 
     const dragonCapital = map.CLAN_CAPITALS.dragon;
     const dragonBorder = map.LAND_BORDERS.find(border => border.provinces.includes(dragonCapital));
@@ -260,6 +271,29 @@ try {
         'raider',
         'Феникс должен игнорировать напечатанные +2 защиты столицы'
     );
+    const phoenixBattleLog = phoenixAttack.game.log.find(entry => entry.details);
+    assert.ok(phoenixBattleLog.message.includes('Общая сила стороны «Клан Скорпион»: 0'));
+    assert.ok(phoenixBattleLog.message.includes('Победа: Клан Феникс!'));
+    assert.ok(phoenixBattleLog.details.includes('Феникс игнорирует напечатанную защиту столицы'));
+
+    const attackersTie = createRaidFixture(false);
+    attackersTie.players.push({ ...attackersTie.players[0], id: 'third', name: 'Третий', clanId: 'dragon' });
+    attackersTie.game.orders = ['raider', 'third'].map(playerId => ({
+        id: `${playerId}-tie-army`,
+        playerId,
+        token: { id: `${playerId}-tie-token`, type: 'army', strength: 4 },
+        target: { kind: 'land-border', id: sharedBorder.id, provinceId: northShadowlands }
+    }));
+    const neutralTie = structuredClone(attackersTie);
+    neutralTie.game.provinces[northShadowlands] = null;
+    roomObject.resolveBattles(attackersTie, new Set(attackersTie.game.orders.map(order => order.id)));
+    const attackersTieLog = attackersTie.game.log.find(entry => entry.details);
+    assert.ok(attackersTieLog.message.includes('Победа: Клан Скорпион!'));
+    assert.equal((attackersTieLog.message.match(/Общая сила стороны/g) ?? []).length, 3);
+    assert.ok(attackersTieLog.details.includes('сравнялись'));
+    roomObject.resolveBattles(neutralTie, new Set(neutralTie.game.orders.map(order => order.id)));
+    assert.equal(neutralTie.game.provinces[northShadowlands], null);
+    assert.ok(neutralTie.game.log.find(entry => entry.details).message.includes('Победителя нет'));
 
     const crabDefense = createRaidFixture(false);
     crabDefense.players.find(player => player.id === 'defender').clanId = 'crab';

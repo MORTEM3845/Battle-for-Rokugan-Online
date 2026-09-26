@@ -1,4 +1,5 @@
 import type { GameLogEntry } from '../../../shared/room';
+import { GameLogMessage } from './GameLogMessage';
 import './log.css';
 
 export function GameEventLog({ entries }: { entries: GameLogEntry[] }) {
@@ -10,7 +11,7 @@ export function GameEventLog({ entries }: { entries: GameLogEntry[] }) {
                 ? <p>События появятся после вскрытия первых приказов.</p>
                 : visibleEntries.map(entry => <article key={entry.id} className={`log-entry log-${entry.type}`}>
                     <i>{logSymbol(entry.type)}</i>
-                    <div><small>Раунд {entry.round}</small><span>{entry.message}</span></div>
+                    <div><small>Раунд {entry.round}</small><GameLogMessage message={entry.message} details={entry.details} /></div>
                 </article>)}
         </div>
     </aside>;

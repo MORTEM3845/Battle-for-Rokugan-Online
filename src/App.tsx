@@ -5,7 +5,7 @@ import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 
 export default function App() {
-    const [roomCode, setRoomCode] = useState(roomCodeFromPath());
+    const [roomCode, setRoomCode] = useState(roomCodeFromPath);
 
     useEffect(() => {
         const handler = () => setRoomCode(roomCodeFromPath());
@@ -13,5 +13,5 @@ export default function App() {
         return () => removeEventListener('popstate', handler);
     }, []);
 
-    return <LanguageProvider>{roomCode ? <RoomPage code={roomCode} /> : <HomePage />}</LanguageProvider>;
+    return <LanguageProvider>{roomCode ? <RoomPage key={roomCode} code={roomCode} /> : <HomePage />}</LanguageProvider>;
 }

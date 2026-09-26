@@ -6,6 +6,54 @@
     background-size: cover;
 }
 body:has(.lobby-page) { background-attachment: fixed; }
+
+/* Dark washi sheets pinned over the map; scoped to the room lobby. */
+.lobby-page > .panel {
+    position: relative;
+    isolation: isolate;
+    border-radius: 6px;
+    border-color: rgba(199, 164, 110, .38);
+    background:
+        radial-gradient(ellipse at 0 0, rgba(193, 143, 76, .15), transparent 55%),
+        repeating-linear-gradient(3deg, transparent 0 3px, rgba(222, 190, 137, .025) 3px 4px),
+        linear-gradient(110deg, #30271c, #231d17 55%, #2c241b);
+    box-shadow: inset 0 0 32px rgba(8, 5, 3, .4), 0 12px 28px rgba(0, 0, 0, .4);
+    backdrop-filter: none;
+    overflow: visible;
+}
+.lobby-page > .panel::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 10px;
+    right: 10px;
+    height: 9px;
+    background:
+        radial-gradient(circle at 4px 4px, #e0bf82 0 1px, #806244 2px 3px, #17110c 4px, transparent 5px),
+        radial-gradient(circle at calc(100% - 4px) 4px, #e0bf82 0 1px, #806244 2px 3px, #17110c 4px, transparent 5px);
+    pointer-events: none;
+}
+.lobby-page > .panel::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    left: 5px;
+    right: 5px;
+    height: 6px;
+    background: #30271c;
+    clip-path: polygon(0 0, 100% 0, 100% 55%, 97% 80%, 91% 45%, 86% 100%, 79% 55%, 72% 90%, 65% 50%, 58% 85%, 50% 45%, 43% 100%, 36% 60%, 29% 85%, 22% 50%, 15% 100%, 8% 55%, 3% 85%, 0 60%);
+    pointer-events: none;
+}
+.lobby-page .player-card,
+.lobby-page .detailed-clan-card,
+.lobby-page .clan-card-rule { border-radius: 6px; }
+.lobby-header .header-actions { align-items: center; flex-wrap: nowrap; }
+.lobby-header .header-actions > button { white-space: nowrap; }
+.lobby-header .room-tools { position: static; flex-shrink: 0; }
+@media (max-width: 700px) {
+    .lobby-header .header-actions { flex-wrap: wrap; }
+    .lobby-header .header-actions > button { flex: 0 1 auto; }
+}
 .rokugan-home::before {
     position: fixed;
     inset: 0;
@@ -401,7 +449,19 @@ body:has(.lobby-page) { background-attachment: fixed; }
 }
 
 .game-screen .token-inventory > summary {
+    color: #efdfc2;
     background: rgba(201, 166, 107, .045);
+}
+
+.game-screen .token-inventory > summary small {
+    color: #c4b79f;
+    white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+    .game-screen .token-inventory { width: 80px; }
+    .game-screen .token-inventory > summary { gap: 6px; padding: 6px; }
+    .game-screen .token-inventory > summary small { display: none; }
 }
 
 .game-screen .player-popover,
@@ -586,5 +646,92 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
     body:has(.game-screen) .room-chat-game .chat-panel {
         top: 52px;
         bottom: auto;
+    }
+}
+
+/* Shared reading sizes for game UI; map symbols and strength badges keep their scale. */
+.game-screen {
+    --text-caption: 14px;
+    --text-body: 16px;
+    --text-heading: 24px;
+    font-size: var(--text-body);
+}
+.game-screen :is(.phase-kicker, .round-summary strong, .hud-player-copy span,
+    .hud-player-copy small, .first-player-banner small, .game-log-title span,
+    .log-entry small, .rack-player span, .rack-player small, .rack-note span,
+    .token-inventory > summary small, .objective-tab-handle b,
+    .objective-selection > p, .secret-objective-card small, .secret-objective-card span,
+    .objective-readiness b, .objective-readiness em, .objective-waiting span) {
+    font-size: var(--text-caption);
+    line-height: 1.4;
+    letter-spacing: .02em;
+}
+.game-screen :is(.phase-card p, .phase-action, .log-entry span, .game-log-entries > p,
+    .hud-player-copy strong, .first-player-banner b, .round-summary p,
+    .rack-player strong, .rack-note strong, .token-inventory > summary b,
+    .objective-tab-handle span, .secret-objective-card b, .objective-waiting b) {
+    font-size: var(--text-body);
+    line-height: 1.45;
+}
+.game-screen :is(.phase-card h2, .game-log-title b, .objective-selection h1,
+    .secret-objective-card strong, .ledger-title h3) {
+    font-size: var(--text-heading);
+    line-height: 1.2;
+}
+
+/* A wider ledger lets names and horizontal column labels breathe. */
+.game-screen .token-inventory > .token-ledger {
+    width: min(600px, calc(100vw - 32px));
+    max-height: min(72dvh, 720px);
+    color: #efdfc2;
+    background: #211b14;
+    border-color: #b18b51;
+    scrollbar-gutter: stable;
+}
+.game-screen .ledger-title { padding: 18px 16px 14px; }
+.game-screen .ledger-title span { color: #d1aa77; font-size: var(--text-caption); }
+.game-screen .ledger-title h3 { margin-top: 6px; color: #f1dfbc; }
+.game-screen :is(.ledger-head, .ledger-row, .ledger-total) {
+    grid-template-columns: minmax(140px, 1fr) repeat(4, 64px);
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: var(--text-body);
+}
+.game-screen .ledger-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    color: #d1bb95;
+    background: #2a2117;
+    font-size: var(--text-caption);
+}
+.game-screen .ledger-head b { writing-mode: horizontal-tb; transform: none; }
+.game-screen .ledger-row { min-height: 46px; }
+.game-screen .ledger-row > span { gap: 8px; flex-wrap: wrap; }
+.game-screen .ledger-row em { margin-left: 0; font-size: var(--text-caption); }
+.game-screen :is(.ledger-row > b, .ledger-total > b) { font-size: var(--text-body); color: #f3dfb8; }
+.game-screen .token-ledger > p { padding: 16px; color: #c4b79f; font-size: var(--text-caption); line-height: 1.5; }
+.game-screen .ledger-row .mini-token { width: 28px; height: 34px; padding-top: 5px; }
+
+/* Gold thumb over dark wood, shared by the ledger, logs and other scrollable UI. */
+body:has(.game-screen), .game-screen, .game-screen *, .room-chat-game * {
+    scrollbar-width: auto;
+    scrollbar-color: #b78c4c #19150f;
+}
+.game-screen ::-webkit-scrollbar, .room-chat-game ::-webkit-scrollbar { width: 12px; height: 12px; }
+.game-screen ::-webkit-scrollbar-track, .room-chat-game ::-webkit-scrollbar-track { background: #19150f; border-left: 1px solid #4e3d26; }
+.game-screen ::-webkit-scrollbar-thumb, .room-chat-game ::-webkit-scrollbar-thumb {
+    border: 3px solid #19150f;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #806035, #d2af6c, #99713e);
+}
+.game-screen ::-webkit-scrollbar-thumb:hover, .room-chat-game ::-webkit-scrollbar-thumb:hover { background: #dfbb77; }
+.game-screen ::-webkit-scrollbar-corner, .room-chat-game ::-webkit-scrollbar-corner { background: #19150f; }
+@media (max-width: 620px) {
+    .game-screen .token-inventory > .token-ledger { width: auto; }
+    .game-screen :is(.ledger-head, .ledger-row, .ledger-total) {
+        grid-template-columns: minmax(100px, 1fr) repeat(4, minmax(0, 44px));
+        gap: 3px;
+        padding-inline: 8px;
     }
 }

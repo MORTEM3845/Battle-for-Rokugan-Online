@@ -1,0 +1,177 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createServer } from 'vite';
+
+const vite = await createServer({
+    configFile: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+    appType: 'custom', logLevel: 'error'
+});
+const deferred = () => {
+    let resolve, reject;
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+};
+const settle = () => new Promise(resolve => setImmediate(resolve));
+
+try {
+    const { RoomConnection } = await vite.ssrLoadModule('/src/room/RoomConnection.ts');
+    function fixture(load) {
+        const rooms = [], loadErrors = [], actionErrors = [], busy = [], timers = new Set();
+        let delay = 2_000;
+        const connection = new RoomConnection({
+            load, onRoom: room => rooms.push(room), onLoadError: error => loadErrors.push(error),
+            onActionError: error => actionErrors.push(error), onBusy: value => busy.push(value),
+            pollDelay: () => delay,
+            schedule: (task, milliseconds) => {
+                const timer = { task, milliseconds };
+                timers.add(timer);
+                return () => timers.delete(timer);
+            }
+        });
+        return { connection, rooms, loadErrors, actionErrors, busy, timers,
+            hide: () => { delay = 15_000; },
+            poll: () => {
+                const timer = [...timers][0];
+                assert.ok(timer, 'Polling should be scheduled');
+                timers.delete(timer);
+                timer.task();
+            } };
+    }
+
+    // A poll started before a command must never roll the room back, in either response order.
+    for (const pollFirst of [true, false]) {
+        const oldPoll = deferred(), command = deferred();
+        const f = fixture(() => oldPoll.promise);
+        f.connection.start();
+        const pending = f.connection.run(() => command.promise);
+        if (pollFirst) {
+            oldPoll.resolve({ code: 'OLD' });
+            await settle();
+            assert.deepEqual(f.rooms, []);
+        }
+        command.resolve({ code: 'NEW' });
+        await pending;
+        if (!pollFirst) {
+            oldPoll.resolve({ code: 'OLD' });
+            await settle();
+        }
+        assert.deepEqual(f.rooms, [{ code: 'NEW' }]);
+        assert.deepEqual(f.busy, [true, false]);
+        assert.equal(f.timers.size, 1);
+        f.connection.stop();
+        assert.equal(f.timers.size, 0);
+    }
+
+    // A second command is ignored while the first is in progress, even before React rerenders.
+    {
+        const command = deferred();
+        const f = fixture(async () => ({ code: 'ROOM' }));
+        f.connection.start();
+        await settle();
+        let calls = 0;
+        const action = () => { calls++; return command.promise; };
+        const pending = f.connection.run(action);
+        await f.connection.run(action);
+        assert.equal(calls, 1);
+        command.resolve({ code: 'UPDATED' });
+        await pending;
+        await f.connection.run(async () => { calls++; return { code: 'NEXT' }; });
+        assert.equal(calls, 2, 'Further actions must be possible after completion');
+        f.connection.stop();
+    }
+
+    // Background success cannot erase a command failure; polling still recovers and adapts its delay.
+    {
+        let loads = 0;
+        const f = fixture(async () => {
+            if (++loads === 1) throw new Error('offline');
+            return { code: 'ROOM' };
+        });
+        f.connection.start();
+        f.connection.start();
+        await settle();
+        assert.equal(loads, 1);
+        assert.equal(f.loadErrors.at(-1).message, 'offline');
+        const failure = new Error('Clan is taken');
+        await f.connection.run(async () => { throw failure; });
+        f.hide();
+        f.poll();
+        await settle();
+        assert.equal(f.loadErrors.at(-1), null);
+        assert.equal(f.actionErrors.at(-1), failure);
+        assert.deepEqual(f.busy, [true, false]);
+        assert.equal([...f.timers][0].milliseconds, 15_000);
+        f.connection.stop();
+    }
+
+    // Leaving a room suppresses every late callback and prevents new commands.
+    for (const reject of [false, true]) {
+        const poll = deferred(), command = deferred();
+        const f = fixture(() => poll.promise);
+        f.connection.start();
+        const pending = f.connection.run(() => command.promise);
+        f.connection.stop();
+        const before = [f.rooms.length, f.loadErrors.length, f.actionErrors.length, f.busy.length];
+        if (reject) {
+            poll.reject(new Error('late poll'));
+            command.reject(new Error('late command'));
+        } else {
+            poll.resolve({ code: 'OLD' });
+            command.resolve({ code: 'OLD' });
+        }
+        await pending;
+        await settle();
+        assert.deepEqual([f.rooms.length, f.loadErrors.length, f.actionErrors.length, f.busy.length], before);
+        assert.equal(f.timers.size, 0);
+        await f.connection.run(() => { assert.fail('A closed room must not execute a command'); });
+    }
+
+    const originalStorage = globalThis.localStorage;
+    try {
+        const values = new Map();
+        globalThis.localStorage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+        const { loadSession, saveSession } = await vite.ssrLoadModule('/src/room/sessionStorage.ts');
+        const session = { roomCode: 'ABC234', playerId: 'player', playerToken: 'token' };
+        saveSession(session);
+        assert.deepEqual(loadSession('ABC234'), session);
+        assert.equal(loadSession('XYZ234'), null);
+        for (const invalid of ['{', 'null', '42', '[]', '{}',
+            JSON.stringify({ ...session, roomCode: 'XYZ234' }),
+            JSON.stringify({ ...session, playerId: 42 }), JSON.stringify({ ...session, playerToken: '' })]) {
+            values.set('rokugan-session-ABC234', invalid);
+            assert.equal(loadSession('ABC234'), null, `Invalid stored session: ${invalid}`);
+        }
+        globalThis.localStorage.getItem = () => { throw new Error('Storage blocked'); };
+        assert.equal(loadSession('ABC234'), null);
+    } finally {
+        if (originalStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = originalStorage;
+    }
+
+    // Keep feature boundaries enforceable as the project grows. Type imports count too.
+    const root = path.resolve('src');
+    const features = new Set(['home', 'lobby', 'game', 'room']);
+    for (const file of fs.readdirSync(root, { recursive: true }).filter(file => /\.tsx?$/.test(file))) {
+        const absolute = path.join(root, file);
+        const owner = file.split(path.sep)[0];
+        const source = fs.readFileSync(absolute, 'utf8');
+        const imports = /(?:^|\n)\s*(?:import\s+(?:type\s+)?(?:[^;]*?\s+from\s+)?|export\s+(?:type\s+)?(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?)\s+from\s+)['"]([^'"]+)['"]/g;
+        for (const [, specifier] of source.matchAll(imports)) {
+            if (specifier.startsWith('.')) {
+                const target = path.relative(root, path.resolve(path.dirname(absolute), specifier));
+                const [dependency, ...internal] = target.split(path.sep);
+                if (features.has(dependency) && dependency !== owner) {
+                    assert.ok(owner !== 'components', `${file}: shared UI must not depend on ${dependency}`);
+                    if (features.has(owner))
+                        assert.equal(dependency, 'room', `${file}: ${owner} must not depend on ${dependency}`);
+                    assert.ok(internal.length === 0 || (internal.length === 1 && internal[0] === 'index'),
+                        `${file}: import ${dependency} through its public index`);
+                }
+            }
+        }
+    }
+    console.log('client module smoke: ok (polling races, duplicate commands, cleanup, errors, storage, module boundaries)');
+} finally {
+    await vite.close();
+}

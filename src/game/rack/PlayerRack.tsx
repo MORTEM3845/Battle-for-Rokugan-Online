@@ -3,7 +3,7 @@ import {
     type GameViewState, type RoomPlayer
 } from '../../../shared/room';
 import type { SelectedClanAction } from '../types';
-import { ClanMon } from '../ClanMon';
+import { ClanMon } from '../../components/ClanMon';
 import { ClanBadge } from '../hud/PlayerIdentity';
 import { SecretObjectiveTab } from '../objectives/SecretObjectiveTab';
 import { TOKEN_INFO, clanStyle } from '../presentation';
@@ -38,6 +38,7 @@ export function PlayerRack(props: PlayerRackProps) {
         setupComplete, mustReturnDragonToken, canUseScorpionPeek, selectedToken, selectedActionCard,
         selectedClanAction, unicornOrderIds, onSelectActionCard, onToggleScorpion, onSelectToken,
         onReturnDragonToken } = props;
+    const hint = rackHint(game, currentStats, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken, unicornOrderIds.length);
     return <section className="private-rack" aria-label="Ваша область">
         <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished={game.phase === 'finished'} />
         <div className="rack-player"><ClanBadge player={currentPlayer} /><div>
@@ -70,7 +71,7 @@ export function PlayerRack(props: PlayerRackProps) {
         </div>
         <div className="rack-note">
             <strong>{rackTitle(game, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken)}</strong>
-            <span>{rackHint(game, currentStats, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken, unicornOrderIds.length)}</span>
+            {hint && <span>{hint}</span>}
         </div>
     </section>;
 }
@@ -97,7 +98,7 @@ function rackHint(game: GameViewState, stats: GamePlayerView, dragon: boolean, c
     if (stats.skipsPlacement) return 'В этом раунде у вас не осталось законных размещений';
     return stats.isRonin
         ? 'Статус ронина проверяется в начале раунда; невозможные оставшиеся ходы пропускаются автоматически'
-        : 'Пять размещаются по очереди, один остаётся за ширмой';
+        : '';
 }
 
 function phaseStatus(phase: string, turnName?: string): string {

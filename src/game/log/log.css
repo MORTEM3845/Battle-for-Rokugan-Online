@@ -12,3 +12,10 @@
 .log-entry span { color: #403025; font-size: 10px; line-height: 1.45; }
 .log-raid span { color: #d99b79; }
 .log-control span, .log-defense span { color: #a9c9d7; }
+.log-message-text { white-space: pre-line; }
+.log-message summary { cursor: help; list-style: none; }
+.log-message summary::-webkit-details-marker { display: none; }
+.log-message summary:focus-visible { outline: 2px solid #9a4834; outline-offset: 3px; }
+.log-message .log-message-hint { display: block; margin-top: 4px; color: #866f55; font-size: 9px; text-decoration: underline dotted; }
+.log-message .log-message-details { display: block; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--paper-line); white-space: pre-line; }
+.resolution-battle-message { margin: 8px 0; font-size: 11px; line-height: 1.5; }

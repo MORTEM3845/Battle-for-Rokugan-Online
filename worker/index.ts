@@ -116,7 +116,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     const roomStub = getRoomStub(env, code);
     if (parts[3] === 'chat' && (request.method === 'GET' || request.method === 'POST')) {
-        const roomResponse = await roomStub.fetch(new Request('https://room/state', { headers: request.headers }));
+        const roomPath = request.method === 'POST' ? '/authorize' : '/state';
+        const roomResponse = await roomStub.fetch(new Request(`https://room${roomPath}`, { headers: request.headers }));
         if (!roomResponse.ok)
             return roomResponse;
         return forward(request, getChatStub(env, code), '/messages');

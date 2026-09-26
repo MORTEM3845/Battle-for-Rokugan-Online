@@ -1,6 +1,7 @@
 import type { GamePlayerView, GameViewState, RoomPlayer } from '../../../shared/room';
-import { ClanMon } from '../ClanMon';
+import { ClanMon } from '../../components/ClanMon';
 import { GameEventLog } from '../log/GameEventLog';
+import { GameLogMessage } from '../log/GameLogMessage';
 import { PHASE_LABELS } from '../presentation';
 import { FinalScoreboard } from '../scoreboard/FinalScoreboard';
 
@@ -107,7 +108,14 @@ function ResolutionPlayback({ game, isHost, busy, onAdvance }: {
             <strong>{step.title}</strong>
             <div className="resolution-messages">
                 {step.messages.length > 0
-                    ? step.messages.map((message, index) => <p key={`${step.id}-${index}`}>{message}</p>)
+                    ? step.messages.map((message, index) => {
+                        const details = game.log.find(entry => entry.round === game.round && entry.message === message)?.details;
+                        return details
+                            ? <div className="resolution-battle-message" key={`${step.id}-${index}`}>
+                                <GameLogMessage message={message} details={details} />
+                            </div>
+                            : <p key={`${step.id}-${index}`}>{message}</p>;
+                    })
                     : <p>Жетоны в этой территории исполнены, результат отмечен на карте.</p>}
             </div>
         </div>

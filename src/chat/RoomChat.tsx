@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { ChatMessage } from '../../shared/chat';
 import type { PlayerSession, RoomPlayer } from '../../shared/room';
 import { chatApi } from './api';
@@ -22,6 +22,13 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
     const initialized = useRef(false);
     const previousCount = useRef(0);
     const listRef = useRef<HTMLDivElement>(null);
+    const toggleRef = useRef<HTMLButtonElement>(null);
+    const panelId = useId();
+
+    function close() {
+        setOpen(false);
+        toggleRef.current?.focus();
+    }
 
     useEffect(() => {
         let active = true;
@@ -85,18 +92,22 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
     }
 
     const chat = language === 'ru' ? 'Чат' : 'Chat';
-    return <aside className={`room-chat room-chat-${mode} ${open ? 'is-open' : ''}`}>
-        <button className="chat-fab" onClick={() => setOpen(value => !value)} aria-expanded={open}>
-            <span>文</span><b>{chat}</b>{unread > 0 && <em>{Math.min(unread, 99)}</em>}
+    return <aside className={`room-chat room-chat-${mode} ${open ? 'is-open' : ''}`}
+        onKeyDown={event => { if (event.key === 'Escape' && open) close(); }}>
+        <button ref={toggleRef} className="chat-fab" onClick={() => setOpen(value => !value)} aria-expanded={open}
+            aria-controls={panelId} aria-label={chat}>
+            <span aria-hidden="true">文</span><b>{chat}</b>{unread > 0 && <em>{Math.min(unread, 99)}</em>}
         </button>
-        {open && <section className="chat-panel" aria-label={language === 'ru' ? 'Чат комнаты' : 'Room chat'}>
+        <section id={panelId} className="chat-panel" aria-hidden={!open} inert={!open}
+            aria-label={language === 'ru' ? 'Чат комнаты' : 'Room chat'}>
+            <div className="chat-paper">
             <header><div><span>{language === 'ru' ? 'Комната' : 'Room'} {session.roomCode}</span>
                 <h2>{language === 'ru' ? 'Чат игроков' : 'Player chat'}</h2></div>
-                <button onClick={() => setOpen(false)} aria-label={language === 'ru' ? 'Закрыть чат' : 'Close chat'}>×</button></header>
+                <button onClick={close} aria-label={language === 'ru' ? 'Закрыть чат' : 'Close chat'}>×</button></header>
             <div ref={listRef} className="chat-messages">
-                {messages.length === 0 && <p className="chat-empty">{language === 'ru'
+                {messages.length === 0 && <div className="chat-empty"><span aria-hidden="true">文</span><p>{language === 'ru'
                     ? 'Сообщений пока нет. Можно обсудить правила или напомнить сопернику о ходе.'
-                    : 'No messages yet. Discuss the rules or remind an opponent that everyone is waiting.'}</p>}
+                    : 'No messages yet. Discuss the rules or remind an opponent that everyone is waiting.'}</p></div>}
                 {messages.map(message => <article key={message.id} className={message.playerId === currentPlayer.id ? 'is-mine' : ''}>
                     <div className="chat-avatar">{message.playerName.slice(0, 1).toUpperCase()}</div>
                     <div><span><b>{message.playerName}</b><time>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></span>
@@ -110,10 +121,12 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
                             event.preventDefault();
                             event.currentTarget.form?.requestSubmit();
                         }
-                    }} placeholder={language === 'ru' ? 'Сообщение комнате…' : 'Message the room…'} />
+                    }} aria-label={language === 'ru' ? 'Сообщение комнате' : 'Message the room'}
+                    placeholder={language === 'ru' ? 'Сообщение комнате…' : 'Message the room…'} />
                 <button className="primary" disabled={sending || !text.trim()}>{sending ? '…' : language === 'ru' ? 'Отправить' : 'Send'}</button>
             </form>
             {error && <p className="chat-error">{error}</p>}
-        </section>}
+            </div>
+        </section>
     </aside>;
 }

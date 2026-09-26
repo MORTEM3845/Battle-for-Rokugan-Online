@@ -1,4 +1,5 @@
 import {
+    Fragment,
     forwardRef,
     memo,
     useEffect,
@@ -29,8 +30,10 @@ import {
     type VisibleTokenType
 } from '../../shared/room';
 import provinceSvg from '../assets/rokugan-provinces.svg?raw';
-import { ClanMon } from './ClanMon';
+import { ClanMon } from '../components/ClanMon';
+import { OrderIcon } from './OrderIcon';
 import { angleToward, markerStyle, orderPlacement, pointToward } from './map/geometry';
+import { MapViewport } from './map/MapViewport';
 import { ControlMarkers, DefenseMarkers, SpecialMarkers } from './map/ProvinceMarkers';
 import { provinceIsEligible } from './map/targeting';
 import { CLAN_COLORS, TOKEN_INFO } from './presentation';
@@ -43,7 +46,7 @@ const combinedMapSvg = provinceSvg
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '')
     .replace(
         /<svg\b([^>]*)>/,
-        '<svg$1><image class="map-artwork" href="/assets/rokugan-map.png" x="-256" y="256" width="1536" height="1024" transform="rotate(-90 512 768)" preserveAspectRatio="none" />'
+        '<svg$1><image class="map-artwork" href="/assets/rokugan-map-muted-uniform.png" x="-256" y="256" width="1536" height="1024" transform="rotate(-90 512 768)" preserveAspectRatio="none" />'
     );
 
 interface ProvinceMapProps {
@@ -165,6 +168,10 @@ export function ProvinceMap(props: ProvinceMapProps) {
     }
 
     function handleProvincePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+        if (event.buttons & 4 || (event.target as Element).closest('.map-viewport.is-panning')) {
+            setProvinceTooltip(null);
+            return;
+        }
         const path = findProvince(event.target);
         if (!path) {
             if (provinceTooltip)
@@ -201,8 +208,10 @@ export function ProvinceMap(props: ProvinceMapProps) {
     }, [game.orders]);
 
     return <div className={`province-map landscape-map phase-${game.phase}`}
+        onPointerDown={() => setProvinceTooltip(null)}
         onPointerMove={handleProvincePointerMove}
         onPointerLeave={() => setProvinceTooltip(null)}>
+        <MapViewport>
         <div className="rotated-map" onClick={handleMapClick}>
             <ProvinceShapes ref={layerRef} />
 
@@ -333,7 +342,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
                     const isInteractive = ((canBless || canUseActionCard) && !orderPlacementDisabled) ||
                         canUseClanAction;
 
-                    return <button key={order.id}
+                    return <Fragment key={order.id}><button
                         className={`placed-order placed-order-${order.type} ${protectedByBlessing ? 'is-blessed' : ''} ${order.isClanToken ? 'is-clan-token' : ''} ${hoveredPlayerId === order.playerId ? 'is-highlighted' : ''} ${canBless ? 'is-blessing-target' : ''} ${canUseActionCard ? 'is-card-target' : ''} ${canUseClanAction ? 'is-clan-action-target' : ''} ${selectedForClanAction ? 'is-clan-action-selected' : ''} ${resolvingHere ? 'is-resolving-order' : ''} ${game.phase === 'reveal' && order.revealed && !game.clanActionPending ? 'is-revealed' : ''}`}
                         style={markerStyle(placement.x, placement.y, color, placement.angle)}
                         disabled={!isInteractive}
@@ -342,19 +351,22 @@ export function ProvinceMap(props: ProvinceMapProps) {
                             : canUseActionCard
                                 ? onActionCardTarget(order.id)
                                 : onTarget({ kind: 'order', id: order.id })}
-                        title={order.type === 'hidden' ? 'Скрытый приказ' : tokenLabel(order.type)}>
-                        <span>{tokenSymbol(order.type)}</span>
+                        title={`${tokenLabel(order.type)}${protectedByBlessing ? ` · Благословение +${blessingStrength}` : ''}`}>
+                        <span><OrderIcon type={order.type} /></span>
                         {order.strength !== null && <b>{order.strength}</b>}
-                        {protectedByBlessing && <span className="blessing-seal"
-                            title={`Благословение: +${blessingStrength} к силе и защита от эффектов`}>
-                            <span aria-hidden="true">祝</span>
-                            <strong>+{blessingStrength}</strong>
-                        </span>}
                         {order.isClanToken && <i>◆</i>}
-                    </button>;
+                    </button>
+                        {protectedByBlessing && <span className="blessing-seal"
+                            style={markerStyle(placement.x, placement.y)}
+                            title={`Благословение: +${blessingStrength} к силе и защита от эффектов`}
+                            aria-hidden="true">
+                            <span>БЛАГО</span><strong>+{blessingStrength}</strong>
+                        </span>}
+                    </Fragment>;
                 })}
             </div>
         </div>
+        </MapViewport>
 
         {provinceTooltip && <div className="province-tooltip" role="tooltip"
             style={{ left: provinceTooltip.x, top: provinceTooltip.y }}>
@@ -414,10 +426,6 @@ function TargetMarker(props: {
         title={label}>
         <span>+</span>
     </button>;
-}
-
-function tokenSymbol(type: VisibleTokenType): string {
-    return type === 'hidden' ? '?' : TOKEN_INFO[type].symbol;
 }
 
 function tokenLabel(type: VisibleTokenType): string {

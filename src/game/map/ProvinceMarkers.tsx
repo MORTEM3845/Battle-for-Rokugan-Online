@@ -2,7 +2,7 @@ import {
     PROVINCE_BASE_DEFENSE, PROVINCE_CENTERS, PROVINCE_HONOR, PROVINCE_IDS, PROVINCE_NAMES
 } from '../../../shared/map';
 import { CLANS, type GameViewState, type RoomPlayer } from '../../../shared/room';
-import { ClanMon } from '../ClanMon';
+import { ClanMon } from '../../components/ClanMon';
 import { CLAN_COLORS } from '../presentation';
 import { markerStyle } from './geometry';
 

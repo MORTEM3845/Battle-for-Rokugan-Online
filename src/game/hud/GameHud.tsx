@@ -1,6 +1,7 @@
 import { CLAN_RULES, type RoomPlayer, type RoomState } from '../../../shared/room';
 import { PHASE_LABELS, clanStyle } from '../presentation';
 import { ClanBadge } from './PlayerIdentity';
+import { CopyRoomLinkButton } from '../../components/CopyRoomLinkButton';
 
 interface GameHudProps {
     room: RoomState;
@@ -12,11 +13,11 @@ export function GameHud({ room, currentPlayerId, onPlayerHover }: GameHudProps) 
     const game = room.game!;
     const firstPlayer = room.players.find(player => player.id === game.firstPlayerId);
     return <header className="game-hud">
-        <div className="round-summary"><button className="copy-room-button room-code-button"
-            onClick={() => navigator.clipboard.writeText(`${location.origin}/room/${room.code}`)}
+        <div className="round-summary"><CopyRoomLinkButton className="copy-room-button room-code-button"
+            url={`${location.origin}/room/${room.code}`}
             aria-label={`Скопировать ссылку на комнату ${room.code}`} title="Скопировать ссылку на комнату">
             {room.code}
-        </button><div>
+        </CopyRoomLinkButton><div>
             <p>{game.stage === 'setup' ? 'Подготовка к игре' : `Раунд ${game.round} / 5`}</p>
             <strong>{PHASE_LABELS[game.phase]}</strong>
         </div></div>

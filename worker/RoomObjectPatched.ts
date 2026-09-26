@@ -30,6 +30,11 @@ export class RoomObject extends BaseRoomObject {
         const url = new URL(request.url);
 
         try {
+            if (request.method === 'GET' && url.pathname === '/authorize') {
+                const room = await this.patchRequireRoom();
+                const player = this.patchRequirePlayer(request, room);
+                return json({ playerId: player.id, playerName: player.name });
+            }
             if (request.method === 'DELETE' && url.pathname.startsWith('/players/'))
                 return await this.handleKickPlayer(request, decodeURIComponent(url.pathname.slice('/players/'.length)));
             if (request.method === 'POST' && url.pathname === '/game/clan/unicorn-swap')

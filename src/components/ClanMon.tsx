@@ -1,5 +1,10 @@
 import type { ClanId } from '../../shared/room';
-import { CLAN_MON_ASSET } from './presentation';
+
+const CLAN_MON_ASSET: Record<ClanId, string> = {
+    crab: '/assets/clans/crab.png', crane: '/assets/clans/crane.png', dragon: '/assets/clans/dragon.png',
+    lion: '/assets/clans/lion.png', phoenix: '/assets/clans/phoenix.png', scorpion: '/assets/clans/scorpion.png',
+    unicorn: '/assets/clans/unicorn.png'
+};
 
 interface ClanMonProps {
     clanId: ClanId;

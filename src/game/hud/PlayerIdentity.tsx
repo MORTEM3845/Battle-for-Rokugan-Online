@@ -1,5 +1,5 @@
 import { CLANS, type RoomPlayer } from '../../../shared/room';
-import { ClanMon } from '../ClanMon';
+import { ClanMon } from '../../components/ClanMon';
 import { clanStyle } from '../presentation';
 
 export function ClanBadge({ player }: { player: RoomPlayer }) {

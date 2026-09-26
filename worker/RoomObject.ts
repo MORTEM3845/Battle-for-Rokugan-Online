@@ -20,6 +20,7 @@ import {
     type SecretObjectiveId
 } from '../shared/objectives';
 import {
+    CLANS,
     CLAN_RULES,
     type BattleTokenType,
     type ClanActionType,
@@ -1692,12 +1693,36 @@ export class RoomObject {
                     `${earnedDefense > 0 ? ` + открытые жетоны контроля ${earnedDefense}` : ''}` +
                     ` = ${printedAndEarnedDefense}`
                 );
-            this.addLog(
-                game,
-                'battle',
-                `📐 Расчёт боя за «${PROVINCE_NAMES[provinceId]}»: ${participantSummaries.join('; ')}.`,
-                provinceId
-            );
+            const calculationDetails = `📐 Расчёт боя за «${PROVINCE_NAMES[provinceId]}»:\n${participantSummaries.join('\n')}.`;
+            const sideName = (playerId: string): string => {
+                const player = room.players.find(player => player.id === playerId);
+                const clan = CLANS.find(clan => clan.id === player?.clanId);
+                return clan ? `Клан ${clan.name}` : this.playerName(room, playerId);
+            };
+            const logBattleResult = (
+                winningPlayerId: string | null,
+                outcomeDetails: string,
+                defenseStrength = defenderTokenStrength + printedAndEarnedDefense,
+                type: GameLogEventType = 'battle'
+            ): void => {
+                const sideTotals = attackers.map(([playerId, strength]) =>
+                    `Общая сила стороны «${sideName(playerId)}»: ${strength}`
+                );
+                sideTotals.unshift(defenderId
+                    ? `Общая сила стороны «${sideName(defenderId)}»: ${defenseStrength}`
+                    : `Общая сила нейтральной защиты: ${defenseStrength}`);
+                const result = winningPlayerId
+                    ? `Победа: ${sideName(winningPlayerId)}!`
+                    : 'Победителя нет. Провинция остаётся без контроля.';
+                this.addLog(
+                    game,
+                    type,
+                    `⚔ Бой за «${PROVINCE_NAMES[provinceId]}»\n${sideTotals.join('\n')}\n${result}`,
+                    provinceId,
+                    winningPlayerId ?? undefined,
+                    `${calculationDetails}\n${outcomeDetails}`
+                );
+            };
 
             const highestAttack = Math.max(...attackers.map(([, strength]) => strength));
             const strongestAttackers = attackers.filter(([, strength]) => strength === highestAttack);
@@ -1714,20 +1739,15 @@ export class RoomObject {
                     .map(([playerId]) => this.playerName(room, playerId))
                     .join(', ');
                 if (defenderId) {
-                    this.addLog(
-                        game,
-                        'battle',
-                        `⚔ Битва за «${PROVINCE_NAMES[provinceId]}»: атакующие ${attackerNames} сравнялись, поэтому ${this.playerName(room, defenderId)} удерживает провинцию.`,
-                        provinceId,
-                        defenderId
+                    logBattleResult(
+                        defenderId,
+                        `⚔ Битва за «${PROVINCE_NAMES[provinceId]}»: атакующие ${attackerNames} сравнялись, поэтому ${this.playerName(room, defenderId)} удерживает провинцию.`
                     );
                     this.rewardDefense(room, provinceId, defenderId, 'ничья атакующих');
                 } else {
-                    this.addLog(
-                        game,
-                        'battle',
-                        `⚔ Битва за свободную провинцию «${PROVINCE_NAMES[provinceId]}»: ничья атакующих ${attackerNames} (${highestAttack}). Провинция остаётся без контроля.`,
-                        provinceId
+                    logBattleResult(
+                        null,
+                        `⚔ Битва за свободную провинцию «${PROVINCE_NAMES[provinceId]}»: ничья атакующих ${attackerNames} (${highestAttack}). Провинция остаётся без контроля.`
                     );
                 }
                 this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
@@ -1746,11 +1766,11 @@ export class RoomObject {
 
             if (winnerStrength < effectiveDefense ||
                 (winnerStrength === effectiveDefense && !winsDefenseTie)) {
-                this.addLog(
-                    game,
-                    'battle',
-                    `⚔ Атака на «${PROVINCE_NAMES[provinceId]}» с силой ${winnerStrength} не преодолела защиту ${effectiveDefense}.`,
-                    provinceId
+                logBattleResult(
+                    defenderId,
+                    `⚔ Атака на «${PROVINCE_NAMES[provinceId]}» с силой ${winnerStrength} не преодолела защиту ${effectiveDefense}.` +
+                        (ignoresCapitalDefense ? ' Феникс игнорирует напечатанную защиту столицы.' : ''),
+                    effectiveDefense
                 );
                 if (defenderId)
                     this.rewardDefense(room, provinceId, defenderId, 'атака не преодолела защиту');
@@ -1769,12 +1789,11 @@ export class RoomObject {
                     : strongestAttackers.length > 1 && winnerClan === 'crane'
                         ? ' Журавль побеждает в ничьей атакующих.'
                         : '';
-            this.addLog(
-                game,
-                'control',
+            logBattleResult(
+                winnerId,
                 `🏯 ${this.playerName(room, winnerId)} захватывает «${PROVINCE_NAMES[provinceId]}» с силой ${winnerStrength}. Прежний владелец: ${previousOwnerName}.${abilityNote}`,
-                provinceId,
-                winnerId
+                effectiveDefense,
+                'control'
             );
             this.finishBattleResolutionStep(game, activeOrderIds, provinceId, stepLogStart);
             stepLogStart = game.log.length;
@@ -1959,9 +1978,10 @@ export class RoomObject {
         type: GameLogEventType,
         message: string,
         provinceId?: string,
-        playerId?: string
+        playerId?: string,
+        details?: string
     ): void {
-        game.log.push({ id: crypto.randomUUID(), round: game.round, type, message, provinceId, playerId });
+        game.log.push({ id: crypto.randomUUID(), round: game.round, type, message, provinceId, playerId, details });
         if (game.log.length > 300)
             game.log = game.log.slice(-300);
     }

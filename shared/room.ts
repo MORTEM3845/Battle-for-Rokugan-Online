@@ -149,6 +149,7 @@ export interface GameLogEntry {
     round: number;
     type: GameLogEventType;
     message: string;
+    details?: string;
     provinceId?: string;
     playerId?: string;
 }

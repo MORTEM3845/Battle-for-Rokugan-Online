@@ -6,12 +6,6 @@ export const CLAN_COLORS: Record<ClanId, string> = {
     phoenix: '#de7338', scorpion: '#be3f3c', unicorn: '#8e63bb'
 };
 
-export const CLAN_MON_ASSET: Record<ClanId, string> = {
-    crab: '/assets/clans/crab.png', crane: '/assets/clans/crane.png', dragon: '/assets/clans/dragon.png',
-    lion: '/assets/clans/lion.png', phoenix: '/assets/clans/phoenix.png', scorpion: '/assets/clans/scorpion.png',
-    unicorn: '/assets/clans/unicorn.png'
-};
-
 export const TOKEN_INFO: Record<BattleTokenType, { symbol: string; label: string; hint: string }> = {
     army: { symbol: '兵', label: 'Армия', hint: 'Своя провинция или сухопутная граница' },
     fleet: { symbol: '船', label: 'Флот', hint: 'Своя прибрежная провинция или морская граница' },

@@ -20,7 +20,7 @@ export function SecretObjectivePicker({ room, game, currentPlayer, busy, error, 
                 ? <div className="objective-options">
                     {game.secretObjectiveOptions.map(objective => <button key={objective.id} className="secret-objective-card"
                         disabled={busy} onClick={() => onChoose(objective.id)}>
-                        <small>Тайная цель</small><strong>{objective.name}</strong><span>{objective.condition}</span><b>⭐ +{objective.honor}</b>
+                        <small>Тайная цель</small><strong>{objective.name}</strong><span>{objective.condition}</span><b>+{objective.honor} к итоговому подсчёту</b>
                     </button>)}
                 </div>
                 : <div className="objective-waiting"><b>Ваша цель выбрана и скрыта.</b><span>Ожидаем остальных игроков…</span></div>}

@@ -54,11 +54,11 @@ export class ChatObject {
 
         try {
             if (request.method === 'POST' && url.pathname === '/register')
-                return this.registerIdentity(request);
+                return await this.registerIdentity(request);
             if (request.method === 'GET' && url.pathname === '/messages')
                 return json(await this.getState());
             if (request.method === 'POST' && url.pathname === '/messages')
-                return this.sendMessage(request);
+                return await this.sendMessage(request);
 
             return json({ error: 'Маршрут чата не найден' }, 404);
         } catch (error) {

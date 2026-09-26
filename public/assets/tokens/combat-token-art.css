@@ -1,35 +1,13 @@
-.battle-token > span,
-.placed-order > span,
-.mini-token {
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  color: transparent !important;
-  text-shadow: none !important;
-}
-
 .battle-token > span {
-  width: 40px;
-  height: 40px;
+  width: 27px;
+  height: 27px;
   display: block;
 }
 
 .placed-order > span {
-  width: 30px;
-  height: 30px;
+  width: 23px;
+  height: 23px;
 }
-
-.mini-token {
-  background-size: 76%;
-}
-
-.battle-token-army > span, .placed-order-army > span, .mini-token-army { background-image: url('/assets/tokens/army.svg'); }
-.battle-token-fleet > span, .placed-order-fleet > span, .mini-token-fleet { background-image: url('/assets/tokens/fleet.svg'); }
-.battle-token-shinobi > span, .placed-order-shinobi > span, .mini-token-shinobi { background-image: url('/assets/tokens/shinobi.svg'); }
-.battle-token-blessing > span, .placed-order-blessing > span, .mini-token-blessing { background-image: url('/assets/tokens/blessing.svg'); }
-.battle-token-diplomacy > span, .placed-order-diplomacy > span, .mini-token-diplomacy { background-image: url('/assets/tokens/diplomacy.svg'); }
-.battle-token-raid > span, .placed-order-raid > span, .mini-token-raid { background-image: url('/assets/tokens/raid.svg'); }
-.battle-token-blank > span, .placed-order-blank > span, .mini-token-blank { background-image: url('/assets/tokens/blank.svg'); }
 
 /* Keep the hidden face deliberately unreadable. */
 .placed-order-hidden > span {
