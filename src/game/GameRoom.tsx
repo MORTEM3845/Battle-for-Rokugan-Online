@@ -11,6 +11,7 @@ export function GameRoom({ room, session, currentPlayer, busy, error, tools, run
         {tools}
         <TurnBanner room={room} currentPlayerId={currentPlayer.id} />
         <GameBoard room={room} currentPlayerId={currentPlayer.id} busy={busy} error={error}
+            onRestart={() => run(() => gameApi.restart(session))}
             onAdvance={() => run(() => gameApi.advance(session, game.phase))}
             onChooseSecretObjective={objectiveId => run(() => gameApi.chooseSecretObjective(session, objectiveId))}
             onSetResolutionReady={isReady => run(() => gameApi.setResolutionReady(session, isReady))}

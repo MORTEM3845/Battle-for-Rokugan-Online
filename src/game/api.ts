@@ -9,6 +9,7 @@ const gameRequest = (session: PlayerSession, path: string, body?: unknown) => ap
 );
 
 export const gameApi = {
+    restart: (session: PlayerSession) => gameRequest(session, '/restart'),
     advance: (session: PlayerSession, expectedPhase: GamePhase) => gameRequest(session, '/advance', { expectedPhase }),
     chooseSecretObjective: (session: PlayerSession, objectiveId: SecretObjectiveId) => gameRequest(session, '/objective', { objectiveId }),
     setResolutionReady: (session: PlayerSession, isReady: boolean) => gameRequest(session, '/ready', { isReady }),

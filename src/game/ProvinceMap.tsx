@@ -1,55 +1,41 @@
 import {
     Fragment,
-    forwardRef,
-    memo,
-    useEffect,
     useMemo,
-    useRef,
     useState,
+    type KeyboardEvent,
     type MouseEvent,
     type PointerEvent as ReactPointerEvent
 } from 'react';
 import {
     LAND_BORDERS,
-    PROVINCE_BASE_DEFENSE,
     PROVINCE_CENTERS,
-    PROVINCE_HONOR,
     PROVINCE_NAMES,
     SEA_BORDERS,
-    SHADOWLANDS_PROVINCES,
     type MapPoint
 } from '../../shared/map';
 import {
-    CLANS,
     type ActionCardType,
     type BattleTokenView,
     type GameViewState,
+    type GameLogEntry,
     type OrderTarget,
     type PlacedOrderView,
     type RoomPlayer,
     type VisibleTokenType
 } from '../../shared/room';
-import provinceSvg from '../assets/rokugan-provinces.svg?raw';
 import { ClanMon } from '../components/ClanMon';
 import { OrderIcon } from './OrderIcon';
 import { angleToward, markerStyle, orderPlacement, pointToward } from './map/geometry';
 import { MapViewport } from './map/MapViewport';
 import { ControlMarkers, DefenseMarkers, SpecialMarkers } from './map/ProvinceMarkers';
 import { provinceIsEligible } from './map/targeting';
+import { buildTerritoryState } from './map/territoryState';
+import { RegionControlMarkers, TerritoryLayer } from './map/TerritoryLayer';
 import { CLAN_COLORS, TOKEN_INFO } from './presentation';
 import type { SelectedClanAction } from './types';
 
-// Keep the artwork and the hit areas in one SVG coordinate system.  Rendering
-// the PNG as a separate transformed element allows rounding differences to
-// shift it away from the province paths at some viewport sizes.
-const combinedMapSvg = provinceSvg
-    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '')
-    .replace(
-        /<svg\b([^>]*)>/,
-        '<svg$1><image class="map-artwork" href="/assets/rokugan-map-muted-uniform.png" x="-256" y="256" width="1536" height="1024" transform="rotate(-90 512 768)" preserveAspectRatio="none" />'
-    );
-
 interface ProvinceMapProps {
+    actionNotice?: GameLogEntry;
     game: GameViewState;
     players: RoomPlayer[];
     currentPlayerId: string;
@@ -70,14 +56,10 @@ function findProvince(target: EventTarget | null): SVGPathElement | null {
     return target instanceof Element ? target.closest<SVGPathElement>('path[data-province-id]') : null;
 }
 
-const ProvinceShapes = memo(forwardRef<HTMLDivElement>(function ProvinceShapes(_, ref) {
-    return <div ref={ref} className="province-layer"
-        dangerouslySetInnerHTML={{ __html: combinedMapSvg }} />;
-}));
-
 export function ProvinceMap(props: ProvinceMapProps) {
     const {
         game,
+        actionNotice,
         players,
         currentPlayerId,
         hoveredPlayerId,
@@ -93,7 +75,6 @@ export function ProvinceMap(props: ProvinceMapProps) {
         onPlaceControl
     } = props;
 
-    const layerRef = useRef<HTMLDivElement>(null);
     const [provinceTooltip, setProvinceTooltip] = useState<{
         text: string;
         x: number;
@@ -104,54 +85,13 @@ export function ProvinceMap(props: ProvinceMapProps) {
     const currentPlayerIsRonin = currentPlayerGame?.isRonin ?? false;
     const resolutionStep = game.resolution?.currentStep;
 
-    useEffect(() => {
-        const paths = layerRef.current?.querySelectorAll<SVGPathElement>('path[data-province-id]');
+    const territoryState = useMemo(() => buildTerritoryState({
+        game, playersById, currentPlayerId, hoveredPlayerId, selectedToken,
+        orderPlacementDisabled, controlPlacementActive, actionProvinceId: actionNotice?.provinceId
+    }), [game, playersById, currentPlayerId, hoveredPlayerId, selectedToken,
+        orderPlacementDisabled, controlPlacementActive, actionNotice?.provinceId]);
 
-        paths?.forEach(path => {
-            const id = path.dataset.provinceId!;
-            const ownerId = game.provinces[id];
-            const owner = ownerId ? playersById[ownerId] : undefined;
-            const validOrderTarget = !!selectedToken && provinceIsEligible(selectedToken, id, game, currentPlayerId);
-            const validControlTarget = controlPlacementActive && game.provinces[id] === null;
-            const honor = PROVINCE_HONOR[id] ?? 0;
-            const baseDefense = PROVINCE_BASE_DEFENSE[id] ?? 0;
-            const earnedDefense = game.defenseBonuses[id] ?? 0;
-            const earnedDefenseStrength = earnedDefense * (owner?.clanId === 'crab' ? 3 : 1);
-            const clanName = owner?.clanId
-                ? CLANS.find(clan => clan.id === owner.clanId)?.name ?? owner.clanId
-                : null;
-            const ownership = owner
-                ? `Принадлежит клану ${clanName} (${owner.name})`
-                : 'Ничейная провинция';
-            const special = game.provinceSpecials[id] === 'scorched'
-                ? ' · 🔥 Разорённая земля'
-                : game.provinceSpecials[id] === 'peace'
-                    ? ' · ☮ Мир'
-                    : '';
-            const honorText = SHADOWLANDS_PROVINCES.has(id)
-                ? `⭐ ${honor} на поле (0 чести в конце игры)`
-                : `⭐ ${honor}`;
-            const defenseText = `🛡 ${baseDefense + earnedDefenseStrength}` +
-                ` (база ${baseDefense}, открытые жетоны ${earnedDefenseStrength}` +
-                `${owner?.clanId === 'crab' && earnedDefense > 0 ? ` = ${earnedDefense} × 3, Краб` : ''})`;
-            const tooltip = `${PROVINCE_NAMES[id]} · ${honorText} · ${defenseText} · ${ownership}${special}`;
-
-            path.dataset.provinceName = PROVINCE_NAMES[id];
-            path.setAttribute('aria-label', tooltip);
-
-            path.classList.toggle('is-owned', !!owner);
-            path.classList.toggle('is-player-highlight', !!ownerId && ownerId === hoveredPlayerId);
-            path.classList.toggle('is-valid-target', validControlTarget || (!orderPlacementDisabled && validOrderTarget));
-            path.classList.toggle('is-resolving', resolutionStep?.provinceId === id);
-
-            if (owner?.clanId)
-                path.style.setProperty('--owner-color', CLAN_COLORS[owner.clanId]);
-            else
-                path.style.removeProperty('--owner-color');
-        });
-    }, [controlPlacementActive, currentPlayerId, game, hoveredPlayerId, orderPlacementDisabled, playersById, selectedToken]);
-
-    function handleMapClick(event: MouseEvent<HTMLDivElement>) {
+    function handleMapClick(event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) {
         const path = findProvince(event.target);
         if (!path)
             return;
@@ -212,13 +152,26 @@ export function ProvinceMap(props: ProvinceMapProps) {
         onPointerMove={handleProvincePointerMove}
         onPointerLeave={() => setProvinceTooltip(null)}>
         <MapViewport>
-        <div className="rotated-map" onClick={handleMapClick}>
-            <ProvinceShapes ref={layerRef} />
+        <div className="rotated-map" onClick={handleMapClick} onKeyDown={event => {
+            if ((event.key === 'Enter' || event.key === ' ') && findProvince(event.target)) {
+                event.preventDefault();
+                handleMapClick(event);
+            }
+        }}>
+            <TerritoryLayer state={territoryState} hoveredPlayerId={hoveredPlayerId} />
 
             <div className="map-markers">
                 <ControlMarkers game={game} playersById={playersById} hoveredPlayerId={hoveredPlayerId} />
                 <DefenseMarkers game={game} playersById={playersById} />
                 <SpecialMarkers game={game} />
+                <RegionControlMarkers regions={territoryState.completedRegions} hoveredPlayerId={hoveredPlayerId} />
+                {actionNotice?.provinceId && PROVINCE_CENTERS[actionNotice.provinceId] &&
+                    <span key={actionNotice.id} className="resolution-map-effect shugenja-map-effect"
+                        style={markerStyle(PROVINCE_CENTERS[actionNotice.provinceId].x,
+                            PROVINCE_CENTERS[actionNotice.provinceId].y)}
+                        title={actionNotice.message}>
+                        <i>✨</i>
+                    </span>}
 
                 {resolutionStep?.provinceId && PROVINCE_CENTERS[resolutionStep.provinceId] &&
                     <span key={resolutionStep.id}

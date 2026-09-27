@@ -17,7 +17,7 @@ export function GameHud({ room, currentPlayerId, onPlayerHover }: GameHudProps) 
             url={`${location.origin}/room/${room.code}`}
             aria-label={`Скопировать ссылку на комнату ${room.code}`} title="Скопировать ссылку на комнату">
             {room.code}
-        </CopyRoomLinkButton><div>
+        </CopyRoomLinkButton><div className="round-summary-copy">
             <p>{game.stage === 'setup' ? 'Подготовка к игре' : `Раунд ${game.round} / 5`}</p>
             <strong>{PHASE_LABELS[game.phase]}</strong>
         </div></div>
@@ -25,17 +25,16 @@ export function GameHud({ room, currentPlayerId, onPlayerHover }: GameHudProps) 
         <div className="players-hud" aria-label="Игроки">
             {room.players.map(player => <HudPlayer key={player.id} player={player} room={room}
                 current={player.id === currentPlayerId} active={player.id === game.turnPlayerId}
-                first={player.id === game.firstPlayerId} onHover={onPlayerHover} />)}
+                onHover={onPlayerHover} />)}
         </div>
     </header>;
 }
 
-function HudPlayer({ player, room, current, active, first, onHover }: {
+function HudPlayer({ player, room, current, active, onHover }: {
     player: RoomPlayer;
     room: RoomState;
     current: boolean;
     active: boolean;
-    first: boolean;
     onHover: (id: string | null) => void;
 }) {
     const stats = room.game?.players.find(item => item.playerId === player.id);
@@ -44,21 +43,20 @@ function HudPlayer({ player, room, current, active, first, onHover }: {
         tabIndex={0} onPointerEnter={() => onHover(player.id)} onPointerLeave={() => onHover(null)}>
         <ClanBadge player={player} />
         <div className="hud-player-copy">
-            <span>{first ? 'Первый игрок' : current ? 'Вы' : player.kind === 'bot' ? 'Бот' : 'Игрок'}</span>
-            <strong>{player.name}</strong>
-            <small>{room.game?.phase === 'setup' ? `${stats?.setupRemaining ?? 0} контр.` :
-                `${stats?.provinceCount ?? 0} пров. · ${stats?.placedCount ?? 0}/5` +
-                `${stats?.isRonin ? ' · ронин' : ''}${stats?.skipsPlacement ? ' · пас' : ''}`}</small>
+            <strong title={player.name}>{player.name}</strong>
+            <small>{stats?.provinceCount ?? 0} пров.</small>
         </div>
         <div className="player-popover">
             <b>{player.name}</b>
+            {player.id === room.game?.firstPlayerId && <span>Первый игрок</span>}
             <span>Жетоны в активе: {stats?.handCount ?? 0}</span><span>Личный запас: {stats?.stockCount ?? 0}</span>
             <span>Сброс: {stats?.discardCount ?? 0}</span><span>Провинции: {stats?.provinceCount ?? 0}</span>
+            <span>Размещено приказов: {stats?.placedCount ?? 0}/5</span>
             {stats?.isRonin && <span>Статус: ронин{stats.skipsPlacement ? ', пропускает размещение' : ''}</span>}
             <span>Контроль на подготовке: {stats?.setupRemaining ?? 0}</span>
             {clanRule && <div className="clan-rule-preview"><strong>{clanRule.name}</strong><span>{clanRule.ability}</span>
                 <em>Особый жетон: {clanRule.uniqueToken.label}</em></div>}
-            <em>Владения и приказы игрока увеличены на карте</em>
+            <em>Владения и полные регионы игрока подсвечены на карте</em>
         </div>
     </article>;
 }

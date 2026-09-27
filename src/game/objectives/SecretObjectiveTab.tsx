@@ -6,12 +6,22 @@ export function SecretObjectiveTab({ objective, achieved, finished }: {
     if (!objective)
         return null;
     const status = achieved ? '✓ выполнена' : finished ? '✕ не выполнена' : '○ в процессе';
-    return <aside className={`objective-tab ${achieved ? 'is-achieved' : ''} ${finished && !achieved ? 'is-failed' : ''}`} tabIndex={0}>
-        <div className="objective-tab-handle"><span>🎴 Тайная цель</span><b>{status}</b></div>
+    return <details className={`objective-tab ${achieved ? 'is-achieved' : ''} ${finished && !achieved ? 'is-failed' : ''}`}>
+        <summary className="objective-tab-handle">
+            <span className="objective-tab-heading">
+                <span className="objective-tab-label">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1" /><path d="M5 7V5a3 3 0 0 1 6 0v2M8 10v2" /></svg>
+                    Тайная цель
+                </span>
+                <b>{status}</b>
+            </span>
+            <span className="objective-tab-title"><strong>{objective.name}</strong><span className="objective-tab-chevron" aria-hidden="true">⌄</span></span>
+            <span className="objective-tab-reward">+{objective.honor} чести</span>
+        </summary>
         <div className="objective-tab-card">
-            <small>Только для вас</small><strong>{objective.name}</strong><p>{objective.condition}</p>
-            <div><b>⭐ +{objective.honor}</b><span>{achieved ? 'Условие выполнено' : finished
-                ? 'Условие не выполнено к концу партии' : 'Условие пока не выполнено'}</span></div>
+            <small>Условие цели</small><p>{objective.condition}</p>
+            <span>{achieved ? 'Условие выполнено' : finished
+                ? 'Условие не выполнено к концу партии' : 'Проверяется в конце партии'}</span>
         </div>
-    </aside>;
+    </details>;
 }

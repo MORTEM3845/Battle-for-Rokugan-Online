@@ -294,11 +294,22 @@ body:has(.lobby-page) { background-attachment: fixed; }
 }
 
 .game-screen .game-hud {
-    min-height: 72px;
+    --hud-item-height: 40px;
+    min-height: 0;
     gap: 10px;
     margin-bottom: 10px;
-    padding: 8px 10px;
+    padding: 3px 10px;
 }
+
+.game-screen .game-hud :is(.round-summary, .first-player-banner, .hud-player, .copy-room-button) {
+    height: var(--hud-item-height);
+    min-height: var(--hud-item-height);
+    padding-block: 0;
+}
+.game-screen .game-hud .clan-badge { width: 28px; height: 28px; }
+.game-screen .game-hud .hud-player-copy { gap: 6px; }
+.game-screen .game-hud .hud-player-copy strong { font-size: 14px; }
+.game-screen .game-hud .hud-player-copy small { font-size: 12px; }
 
 .game-screen .first-player-banner,
 .game-screen .hud-player,
@@ -313,14 +324,12 @@ body:has(.lobby-page) { background-attachment: fixed; }
 }
 
 .game-screen .first-player-banner {
-    min-height: 50px;
-    padding: 8px 12px;
+    padding-inline: 10px;
     border-left-color: var(--sumi-gold);
 }
 
 .game-screen .hud-player {
-    min-height: 50px;
-    padding: 7px 8px;
+    padding-inline: 8px;
     box-shadow: inset 2px 0 color-mix(in srgb, var(--clan-accent) 68%, transparent);
 }
 
@@ -439,13 +448,13 @@ body:has(.lobby-page) { background-attachment: fixed; }
     border-top-color: var(--sumi-gold);
 }
 
-.game-screen .objective-tab-handle {
-    border-color: var(--sumi-line);
-    border-bottom: 0;
-    border-radius: 3px 3px 0 0;
-    color: #2f2517;
-    background: #d2bd8b;
-    box-shadow: 0 -4px 14px rgba(0, 0, 0, .35);
+.game-screen .private-rack.is-finished {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 .game-screen .token-inventory > summary {
@@ -513,6 +522,7 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
 }
 
 .game-screen .round-summary .room-code-button {
+    position: static;
     flex: 0 0 auto;
     justify-self: auto;
     margin-left: 0;
@@ -522,7 +532,19 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
 
 @media (max-width: 1180px) {
     .game-screen .game-stage { grid-template-columns: minmax(520px, 1fr) 230px; }
-    .game-screen .game-hud { grid-template-columns: minmax(180px, .65fr) minmax(130px, .4fr) minmax(360px, 1.7fr) auto; }
+}
+
+@media (min-width: 921px) and (max-width: 1400px) {
+    .game-screen .game-hud { grid-template-columns: auto minmax(0, 1fr); }
+}
+
+@media (max-width: 1400px) {
+    .game-screen .first-player-banner, .game-screen .round-summary-copy strong { display: none; }
+}
+
+@media (max-width: 920px) {
+    .game-screen .game-hud { grid-template-columns: minmax(0, 1fr); }
+    .game-screen .players-hud { grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
@@ -550,19 +572,14 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
 
     .game-screen .game-hud {
         width: 100%;
-        min-height: 54px;
+        min-height: 0;
         gap: 0;
         margin: 0;
-        padding: 2px 8px;
+        padding: 3px 310px 3px 8px;
         border-right: 0;
         border-left: 0;
         border-radius: 0;
     }
-
-    .game-screen .round-summary,
-    .game-screen .first-player-banner,
-    .game-screen .hud-player,
-    .game-screen .copy-room-button { min-height: 48px; }
 
     .game-screen .game-mon { width: 38px; height: 38px; font-size: 20px; }
     .game-screen .round-summary p { font-size: 16px; }
@@ -627,18 +644,17 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
         box-shadow: none;
     }
 
-    .game-screen .objective-tab { top: -31px; }
 
     /* Keep persistent utilities in the formerly unused right-hand HUD space. */
     body:has(.game-screen) .room-tools {
-        top: 9px;
-        right: 120px;
+        top: 4px;
+        right: 114px;
         bottom: auto;
         left: auto;
     }
 
     body:has(.game-screen) .room-chat-game {
-        top: 9px;
+        top: 4px;
         right: 10px;
         bottom: auto;
     }
@@ -647,6 +663,18 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
         top: 52px;
         bottom: auto;
     }
+
+    body:has(.game-screen) :is(.ambient-player.compact-audio, .room-tools .language-toggle, .room-chat-game .chat-fab) {
+        height: 40px;
+        min-height: 40px;
+        padding-block: 0;
+    }
+}
+
+@media (min-width: 921px) and (max-width: 1100px) and (min-height: 650px) {
+    .game-screen .game-hud { padding-right: 8px; row-gap: 4px; }
+    .game-screen .round-summary { margin-right: 302px; }
+    .game-screen .players-hud { grid-column: 1 / -1; grid-row: 2; }
 }
 
 /* Shared reading sizes for game UI; map symbols and strength badges keep their scale. */
@@ -658,8 +686,8 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
 }
 .game-screen :is(.phase-kicker, .round-summary strong, .hud-player-copy span,
     .hud-player-copy small, .first-player-banner small, .game-log-title span,
-    .log-entry small, .rack-player span, .rack-player small, .rack-note span,
-    .token-inventory > summary small, .objective-tab-handle b,
+    .log-entry small, .rack-note span,
+    .token-inventory > summary small,
     .objective-selection > p, .secret-objective-card small, .secret-objective-card span,
     .objective-readiness b, .objective-readiness em, .objective-waiting span) {
     font-size: var(--text-caption);
@@ -668,8 +696,8 @@ body:has(.game-screen) .prominent-turn-banner.is-yours {
 }
 .game-screen :is(.phase-card p, .phase-action, .log-entry span, .game-log-entries > p,
     .hud-player-copy strong, .first-player-banner b, .round-summary p,
-    .rack-player strong, .rack-note strong, .token-inventory > summary b,
-    .objective-tab-handle span, .secret-objective-card b, .objective-waiting b) {
+    .rack-note strong, .token-inventory > summary b,
+    .secret-objective-card b, .objective-waiting b) {
     font-size: var(--text-body);
     line-height: 1.45;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
     type ActionCardType,
+    type GameLogEntry,
     type OrderTarget,
     type RoomState
 } from '../../shared/room';
@@ -34,6 +35,7 @@ interface GameBoardProps {
     busy: boolean;
     error: string;
     onAdvance: () => Promise<void>;
+    onRestart: () => Promise<void>;
     onChooseSecretObjective: (objectiveId: SecretObjectiveId) => Promise<void>;
     onSetResolutionReady: (isReady: boolean) => Promise<void>;
     onPlayScout: (orderId: string) => Promise<void>;
@@ -52,6 +54,7 @@ export function GameBoard(props: GameBoardProps) {
         busy,
         error,
         onAdvance,
+        onRestart,
         onChooseSecretObjective,
         onSetResolutionReady,
         onPlayScout,
@@ -68,7 +71,8 @@ export function GameBoard(props: GameBoardProps) {
     const [selectedActionCard, setSelectedActionCard] = useState<ActionCardType | null>(null);
     const [selectedClanAction, setSelectedClanAction] = useState<SelectedClanAction | null>(null);
     const [unicornOrderIds, setUnicornOrderIds] = useState<string[]>([]);
-    const [actionNotice, setActionNotice] = useState<string | null>(null);
+    const [actionNotices, setActionNotices] = useState<GameLogEntry[]>([]);
+    const actionNotice = actionNotices[0];
     const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
     const [controlTokenStyle, setControlTokenStyle] = useState<ControlTokenStyle>(initialControlTokenStyle);
     const [tokenLabEnabled] = useState(() => typeof window !== 'undefined' &&
@@ -88,34 +92,25 @@ export function GameBoard(props: GameBoardProps) {
 
     useEffect(() => {
         const entries = game?.log ?? [];
+        if (!game)
+            return;
         if (!logsInitialized.current) {
             seenLogIds.current = new Set(entries.map(entry => entry.id));
             logsInitialized.current = true;
             return;
         }
 
-        const freshShugenja = [...entries].reverse().find(entry =>
+        const freshShugenja = entries.filter(entry =>
             !seenLogIds.current.has(entry.id) &&
             entry.type === 'card' &&
-            entry.playerId === currentPlayerId &&
-            entry.message.toLocaleLowerCase('ru').includes('сюгэндзя')
+            (entry.cardAction?.type === 'shugenja' ||
+                entry.message.toLocaleLowerCase('ru').includes('призывает сюгэндзя:'))
         );
         for (const entry of entries)
             seenLogIds.current.add(entry.id);
-        if (freshShugenja) {
-            const detail = freshShugenja.message
-                .replace(/^.*?:\s*/, '')
-                .replace('раскрыт и сброшен жетон', 'Вы убрали жетон');
-            setActionNotice(`✨ ${detail}`);
-        }
+        if (freshShugenja.length)
+            setActionNotices(previous => [...previous, ...freshShugenja]);
     }, [currentPlayerId, game?.log]);
-
-    useEffect(() => {
-        if (!actionNotice)
-            return;
-        const timer = window.setTimeout(() => setActionNotice(null), 4200);
-        return () => window.clearTimeout(timer);
-    }, [actionNotice]);
 
     useEffect(() => {
         const player = room.players.find(candidate => candidate.id === currentPlayerId);
@@ -226,6 +221,7 @@ export function GameBoard(props: GameBoardProps) {
         <section className="game-stage" aria-label="Игровой стол">
             <div className="map-frame">
                 <ProvinceMap game={game} players={room.players} currentPlayerId={currentPlayerId}
+                    actionNotice={actionNotice}
                     hoveredPlayerId={hoveredPlayerId} selectedToken={selectedActionCard ? null : selectedToken}
                     selectedActionCard={selectedActionCard}
                     selectedClanAction={selectedClanAction}
@@ -235,9 +231,12 @@ export function GameBoard(props: GameBoardProps) {
                     onTarget={placeOrder} onActionCardTarget={playActionCard}
                     onClanActionTarget={playClanAction}
                     onPlaceControl={onPlaceControl} />
-                {actionNotice && <div className="action-result-toast" role="status">
-                    <span>Сюгэндзя</span>
-                    <strong>{actionNotice}</strong>
+                {actionNotice && <div key={actionNotice.id} className="action-result-toast" role="alert">
+                    <span>{actionNotice.cardAction?.affectedPlayerId === currentPlayerId
+                        ? 'Сюгэндзя — ваш жетон снят' : 'Применён сюгэндзя'}</span>
+                    <strong>{actionNotice.message}</strong>
+                    <button type="button" className="phase-action"
+                        onClick={() => setActionNotices(previous => previous.slice(1))}>Понятно{actionNotices.length > 1 ? ` (${actionNotices.length})` : ''}</button>
                 </div>}
             </div>
 
@@ -246,6 +245,7 @@ export function GameBoard(props: GameBoardProps) {
                 isRevealReady={isRevealReady} scorpionActionPending={scorpionActionPending}
                 unicornActionPending={unicornActionPending} unicornSelectionCount={unicornOrderIds.length}
                 onPassPlacement={onPassPlacement} onSetResolutionReady={onSetResolutionReady} onAdvance={onAdvance}
+                onRestart={onRestart}
                 onSkipScorpion={() => {
                     setSelectedClanAction(null);
                     void onUseScorpionPeek(null);
@@ -258,7 +258,7 @@ export function GameBoard(props: GameBoardProps) {
         </section>
 
         <PlayerRack game={game} currentPlayer={currentPlayer} currentStats={currentStats} turnPlayer={turnPlayer}
-            busy={busy} isMyTurn={isMyTurn} canPlaceOrder={canPlaceOrder} canPlaceControl={canPlaceControl}
+            busy={busy} canPlaceOrder={canPlaceOrder} canPlaceControl={canPlaceControl}
             setupComplete={setupComplete} mustReturnDragonToken={mustReturnDragonToken}
             canUseScorpionPeek={canUseScorpionPeek} selectedToken={selectedToken}
             selectedActionCard={selectedActionCard} selectedClanAction={selectedClanAction}

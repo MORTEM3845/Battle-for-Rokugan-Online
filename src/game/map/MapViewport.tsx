@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 
 interface MapView {
     scale: number;
@@ -129,8 +129,9 @@ export function MapViewport({ children }: { children: ReactNode }) {
             }
         }}>
         <div className="map-zoom-layer" style={{
+            '--map-marker-scale': 1 / view.scale,
             transform: `translate(${view.x * 100}%, ${view.y * 100}%) scale(${view.scale})`
-        }}>
+        } as CSSProperties}>
             {children}
         </div>
         <div className="map-zoom-controls" role="group" aria-label="Масштаб карты">

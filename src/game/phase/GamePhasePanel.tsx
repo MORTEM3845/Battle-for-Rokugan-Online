@@ -19,6 +19,7 @@ interface GamePhasePanelProps {
     unicornActionPending: boolean;
     unicornSelectionCount: number;
     onPassPlacement: () => Promise<void>;
+    onRestart: () => Promise<void>;
     onSetResolutionReady: (isReady: boolean) => Promise<void>;
     onAdvance: () => Promise<void>;
     onSkipScorpion: () => void;
@@ -28,7 +29,7 @@ interface GamePhasePanelProps {
 export function GamePhasePanel(props: GamePhasePanelProps) {
     const { game, players, currentPlayer, currentStats, turnPlayer, busy, canPlaceOrder, setupComplete,
         isRevealReady, scorpionActionPending, unicornActionPending, unicornSelectionCount,
-        onPassPlacement, onSetResolutionReady, onAdvance, onSkipScorpion, onSkipUnicorn } = props;
+        onPassPlacement, onSetResolutionReady, onAdvance, onRestart, onSkipScorpion, onSkipUnicorn } = props;
     return <div className="game-side-rail">
         <aside className="phase-card">
             <span className="phase-kicker">{game.stage === 'setup' ? 'Перед первым раундом' : `Раунд ${game.round}`}</span>
@@ -76,7 +77,11 @@ export function GamePhasePanel(props: GamePhasePanelProps) {
                 ? <ResolutionPlayback game={game} isHost={currentPlayer.isHost} busy={busy} onAdvance={onAdvance} />
                 : game.phase === 'resolution' && <p>Исполнение приказов завершено. Подробности сохранены в журнале.</p>}
             {game.phase === 'finished' && <><p>Пятый раунд завершён. Победитель определяется по чести, затем по регионам и числу провинций.</p>
-                {game.results && <FinalScoreboard results={game.results} players={players} />}</>}
+                {game.results && <FinalScoreboard results={game.results} players={players} />}
+                {currentPlayer.isHost
+                    ? <><button className="primary phase-action" disabled={busy} onClick={onRestart}>Начать новую игру</button>
+                        <p>Вернуться в это же лобби с теми же участниками и выбрать кланы для новой партии.</p></>
+                    : <p>Хозяин комнаты может начать новую игру в этом же лобби.</p>}</>}
             {currentPlayer.isHost && game.phase === 'setup' && <button className="primary phase-action"
                 disabled={busy || !setupComplete} onClick={onAdvance}>{setupComplete ? 'Начать 1-й раунд' : 'Сначала закончите расстановку'}</button>}
         </aside>

@@ -117,6 +117,8 @@ export class RoomObject {
                 return this.removeBot(request, room, decodeURIComponent(url.pathname.slice('/bots/'.length)));
             if (request.method === 'POST' && url.pathname === '/start')
                 return this.startGame(request, room);
+            if (request.method === 'POST' && url.pathname === '/game/restart')
+                return this.restartGame(request, room);
             if (request.method === 'POST' && url.pathname === '/game/advance')
                 return this.advanceGame(request, room);
             if (request.method === 'POST' && url.pathname === '/game/objective')
@@ -198,6 +200,21 @@ export class RoomObject {
     private async removeBot(request: Request, room: StoredRoom, botId: string): Promise<Response> {
         const host = this.requireHost(request, room);
         removeLobbyBot(room, botId);
+        await this.save(room);
+        return json(this.toPublicState(room, host));
+    }
+
+    private async restartGame(request: Request, room: StoredRoom): Promise<Response> {
+        const host = this.requireHost(request, room);
+        if (room.status === 'lobby')
+            return json(this.toPublicState(room, host));
+        if (room.game?.phase !== 'finished')
+            throw new RequestError(400, 'Новую игру можно начать только после завершения текущей');
+
+        room.status = 'lobby';
+        room.game = null;
+        for (const player of room.players)
+            player.isReady = player.kind === 'bot';
         await this.save(room);
         return json(this.toPublicState(room, host));
     }
@@ -552,6 +569,10 @@ export class RoomObject {
         const game = this.requireGame(room);
         const playerGame = game.players[player.id];
         playerGame.actionCards.shugenja--;
+        const locationOrder = order.target.kind === 'order'
+            ? game.orders.find(candidate => candidate.id === order.target.id) ?? order
+            : order;
+        const provinceId = this.battleProvinceId(locationOrder) ?? undefined;
         const cancelledAttackProvinceId = this.attackedProvinceId(game, order);
         if (cancelledAttackProvinceId && game.provinces[cancelledAttackProvinceId]) {
             game.cancelledAttackProvinceIds ??= [];
@@ -571,9 +592,11 @@ export class RoomObject {
         this.addLog(
             game,
             'card',
-            `✨ ${player.name} призывает сюгэндзя: раскрыт и сброшен жетон «${TOKEN_TYPE_NAMES[order.token.type]}» игрока ${this.playerName(room, order.playerId)}.`,
-            this.battleProvinceId(order) ?? undefined,
-            player.id
+            `✨ ${player.name} призывает сюгэндзя: раскрыт и сброшен жетон «${TOKEN_TYPE_NAMES[order.token.type]}» игрока ${this.playerName(room, order.playerId)}${provinceId ? ` в провинции «${PROVINCE_NAMES[provinceId]}»` : ''}.${order.token.type === 'blank' ? ' Пустой жетон возвращён в руку.' : ''}`,
+            provinceId,
+            player.id,
+            undefined,
+            { type: 'shugenja', affectedPlayerId: order.playerId }
         );
     }
 
@@ -1979,9 +2002,10 @@ export class RoomObject {
         message: string,
         provinceId?: string,
         playerId?: string,
-        details?: string
+        details?: string,
+        cardAction?: GameLogEntry['cardAction']
     ): void {
-        game.log.push({ id: crypto.randomUUID(), round: game.round, type, message, provinceId, playerId, details });
+        game.log.push({ id: crypto.randomUUID(), round: game.round, type, message, provinceId, playerId, details, cardAction });
         if (game.log.length > 300)
             game.log = game.log.slice(-300);
     }

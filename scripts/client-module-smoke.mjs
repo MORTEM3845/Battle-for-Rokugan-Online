@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
+import { createElement, Fragment } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const vite = await createServer({
     configFile: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null },
@@ -15,6 +17,78 @@ const deferred = () => {
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
 try {
+    const { buildTerritoryState } = await vite.ssrLoadModule('/src/game/map/territoryState.ts');
+    const { PROVINCE_IDS, REGIONS } = await vite.ssrLoadModule('/shared/map.ts');
+    const { TerritoryLayer, RegionControlMarkers } = await vite.ssrLoadModule('/src/game/map/TerritoryLayer.tsx');
+    {
+        const region = REGIONS.find(region => region.id === 'greendragon');
+        const playersById = {
+            crane: { id: 'crane', name: 'Журавль', clanId: 'crane' },
+            phoenix: { id: 'phoenix', name: 'Феникс', clanId: 'phoenix' }
+        };
+        const game = {
+            provinces: Object.fromEntries(PROVINCE_IDS.map(id => [id, null])),
+            provinceSpecials: {}, defenseBonuses: {}, players: [], resolution: null
+        };
+        const options = { game, playersById, currentPlayerId: 'crane', hoveredPlayerId: null,
+            selectedToken: null, orderPlacementDisabled: false, controlPlacementActive: false };
+        const state = () => buildTerritoryState(options);
+        assert.equal(state().completedRegions.length, 0, 'Neutral regions are not controlled');
+        region.provinceIds.forEach(id => { game.provinces[id] = 'crane'; });
+        assert.equal(state().completedRegions[0].owner.id, 'crane');
+        game.provinces[region.provinceIds[0]] = 'phoenix';
+        assert.equal(state().completedRegions.length, 0, 'A contested region loses its bonus');
+        game.provinces[region.provinceIds[0]] = null;
+        assert.equal(state().completedRegions.length, 0, 'Neutral land interrupts full control');
+        game.provinceSpecials[region.provinceIds[0]] = 'scorched';
+        assert.deepEqual(state().completedRegions[0].provinceIds, region.provinceIds.slice(1),
+            'Scorched land is excluded exactly as in scoring');
+        region.provinceIds.forEach(id => { game.provinceSpecials[id] = 'scorched'; });
+        assert.equal(state().completedRegions.length, 0, 'An entirely scorched region has no bonus');
+        game.provinceSpecials = {};
+        region.provinceIds.forEach(id => { game.provinces[id] = 'crane'; });
+        REGIONS.filter(region => !region.awardsHonor).forEach(region => {
+            region.provinceIds.forEach(id => { game.provinces[id] = 'crane'; });
+        });
+        assert.equal(state().completedRegions.length, 1, 'Shadowlands never display +5 honor');
+        options.selectedToken = { type: 'shinobi' };
+        options.hoveredPlayerId = 'crane';
+        options.actionProvinceId = region.provinceIds[0];
+        const province = state().provinces.find(province => province.id === region.provinceIds[0]);
+        assert.ok(province.completed && province.highlighted && province.eligible && province.resolving,
+            'Ownership, region control, targeting and resolution coexist');
+        options.orderPlacementDisabled = true;
+        assert.equal(state().provinces.find(candidate => candidate.id === province.id)?.eligible, false);
+        const phoenixProvince = REGIONS.find(region => region.id === 'orangephoenix').provinceIds[0];
+        game.provinces[phoenixProvince] = 'phoenix';
+        const renderTerritories = hoveredPlayerId => {
+            options.hoveredPlayerId = hoveredPlayerId;
+            const territoryState = state();
+            return renderToStaticMarkup(createElement(Fragment, null,
+                createElement(TerritoryLayer, { state: territoryState, hoveredPlayerId }),
+                createElement(RegionControlMarkers, { regions: territoryState.completedRegions, hoveredPlayerId })));
+        };
+        const restingMap = renderTerritories(null);
+        assert.ok(!restingMap.includes('class="territory-owner '), 'No ownership overlay without player hover');
+        assert.ok(!restingMap.includes('data-region-id='), 'No region outlines without player hover');
+        assert.ok(!restingMap.includes('class="region-control-marker '), 'No +5 badges without player hover');
+        const craneMap = renderTerritories('crane');
+        assert.ok(craneMap.includes('data-region-id="greendragon"') && craneMap.includes('class="region-control-marker '),
+            'Hover shows full regions and bonuses belonging to that player');
+        assert.ok(!craneMap.includes('--territory-color:#de7338'), 'Other players have no ownership overlay');
+        const phoenixMap = renderTerritories('phoenix');
+        assert.equal([...phoenixMap.matchAll(/class="territory-owner /g)].length, 1,
+            'Switching hover highlights only the new player');
+        assert.ok(!phoenixMap.includes('data-region-id=') && !phoenixMap.includes('class="region-control-marker '),
+            'Switching hover removes the previous player\'s region outlines and bonuses');
+        assert.equal(renderTerritories(null), restingMap, 'Leaving the player panel restores the quiet map');
+        options.hoveredPlayerId = null;
+        game.provinces[region.provinceIds[0]] = null;
+        const neutral = state().provinces.find(province => province.id === region.provinceIds[0]);
+        assert.equal(neutral.color, null);
+        assert.equal(neutral.highlighted, false);
+        assert.equal(neutral.completed, false, 'Losing land removes the completed-region presentation');
+    }
     const { RoomConnection } = await vite.ssrLoadModule('/src/room/RoomConnection.ts');
     function fixture(load) {
         const rooms = [], loadErrors = [], actionErrors = [], busy = [], timers = new Set();
@@ -171,7 +245,7 @@ try {
             }
         }
     }
-    console.log('client module smoke: ok (polling races, duplicate commands, cleanup, errors, storage, module boundaries)');
+    console.log('client module smoke: ok (territory states, region control, polling races, duplicate commands, cleanup, errors, storage, module boundaries)');
 } finally {
     await vite.close();
 }

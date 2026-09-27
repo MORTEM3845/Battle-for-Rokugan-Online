@@ -24,7 +24,7 @@ try {
         return {
             idFromName: code => code,
             get: code => {
-                if (!objects.has(code)) objects.set(code, factory());
+                if (!objects.has(code)) objects.set(code, factory(code));
                 const object = objects.get(code);
                 return { fetch: (request, init) => object.fetch(
                     typeof request === 'string' ? new Request(request, init) : request
@@ -32,8 +32,13 @@ try {
             }
         };
     };
+    const roomStates = new Map();
     const env = {
-        ROOMS: namespace(() => new RoomObject(memoryState(), env)),
+        ROOMS: namespace(code => {
+            const state = memoryState();
+            roomStates.set(code, state);
+            return new RoomObject(state, env);
+        }),
         CHATS: namespace(() => new ChatObject(memoryState()))
     };
     const request = (route, method = 'GET', body, session) => worker.fetch(new Request(`https://local${route}`, {
@@ -54,6 +59,7 @@ try {
     assert.equal(host.room.players[0].id, host.session.playerId);
     assert.ok(!('token' in host.room.players[0]), 'Public room state must not contain player tokens');
     const guest = await expectJson(await request(`${route}/join`, 'POST', { playerName: 'Guest' }), 201);
+    await expectJson(await request(`${route}/game/restart`, 'POST', undefined, guest.session), 403);
 
     await expectJson(await request(`${route}/clan`, 'POST', { clanId: 'crab' }), 401);
     await expectJson(await request(`${route}/bots`, 'POST', undefined, guest.session), 403);
@@ -94,6 +100,33 @@ try {
     assert.deepEqual(outsider.game.hand, []);
     assert.deepEqual(outsider.game.secretObjectiveOptions, []);
     assert.equal(outsider.game.secretObjective, null);
+
+    // Rematches use the same persisted room and sessions through the production Worker.
+    await expectJson(await request(`${route}/game/restart`, 'POST'), 401);
+    await expectJson(await request(`${route}/game/restart`, 'POST', undefined, host.session), 400);
+    const roomState = roomStates.get(host.room.code);
+    const finishedRoom = await roomState.storage.get('room');
+    finishedRoom.game.phase = 'finished';
+    finishedRoom.game.stage = 'finished';
+    await roomState.storage.put('room', finishedRoom);
+    await expectJson(await request(`${route}/game/restart`, 'POST', undefined, guest.session), 401);
+    const reset = await expectJson(await request(`${route}/game/restart`, 'POST', undefined, host.session), 200);
+    assert.equal(reset.status, 'lobby');
+    assert.equal(reset.game, null);
+    assert.equal(reset.code, host.room.code);
+    assert.deepEqual(reset.players, started.players.map(player => ({ ...player, isReady: player.kind === 'bot' })));
+    const resetAgain = await expectJson(await request(`${route}/game/restart`, 'POST', undefined, host.session), 200);
+    assert.deepEqual(resetAgain, reset, 'A repeated restart must leave the lobby unchanged');
+    await expectJson(await request(`${route}/start`, 'POST', undefined, host.session), 400);
+    await expectJson(await request(`${route}/ready`, 'POST', { isReady: true }, host.session), 200);
+    const rematch = await expectJson(await request(`${route}/start`, 'POST', undefined, host.session), 200);
+    assert.equal(rematch.game.phase, 'objectives');
+    assert.equal(rematch.game.round, 0);
+    assert.deepEqual(rematch.game.orders, []);
+    assert.equal(rematch.game.results, null);
+    await expectJson(await request(`${route}/game/restart`, 'POST', undefined, host.session), 400);
+    const rematchChat = await expectJson(await request(`${route}/chat`), 200);
+    assert.equal(rematchChat.messages.at(-1).text, 'Hello', 'Rematches must preserve room chat');
 
     // Direct ChatObject coverage: asynchronous failures must resolve to HTTP responses.
     const chatState = memoryState();

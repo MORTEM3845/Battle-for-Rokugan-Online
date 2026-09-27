@@ -189,6 +189,8 @@ export class RoomObject extends BaseRoomObject {
             const border = LAND_BORDERS.find(item => item.id === target.id);
             if (!border || !target.provinceId || !border.provinces.includes(target.provinceId))
                 return 'граница больше не соответствует цели атаки';
+            if (border.provinces.some(provinceId => game.provinceSpecials[provinceId]))
+                return 'граница недоступна из-за мира или выжженной земли';
             if (hasLandOrderInDirection(game, target.id, target.provinceId))
                 return 'в этом направлении через границу уже лежит другой приказ';
             const sourceId = border.provinces.find(id => id !== target.provinceId)!;
@@ -204,6 +206,8 @@ export class RoomObject extends BaseRoomObject {
             const sea = SEA_BORDERS.find(item => item.id === target.id);
             if (!sea || sea.provinceId !== target.provinceId)
                 return 'морская граница больше не соответствует цели';
+            if (game.provinceSpecials[sea.provinceId])
+                return 'морская граница недоступна из-за мира или выжженной земли';
             if (hasSeaBorderOrder(game, target.id))
                 return 'на этой морской границе уже лежит другой приказ';
             if (token.type !== 'blank' && token.type !== 'fleet')

@@ -10,6 +10,7 @@ const vite = await createServer({
 
 try {
     const { RoomObject } = await vite.ssrLoadModule('/worker/RoomObject.ts');
+    const { RoomObject: ProductionRoomObject } = await vite.ssrLoadModule('/worker/RoomObjectPatched.ts');
     const map = await vite.ssrLoadModule('/shared/map.ts');
     const { SECRET_OBJECTIVES } = await vite.ssrLoadModule('/shared/objectives.ts');
     const { CLAN_RULES } = await vite.ssrLoadModule('/shared/room.ts');
@@ -134,6 +135,77 @@ try {
     const roomObject = new RoomObject({ storage: {} }, {});
     const state = { storage: { put: async () => {} } };
     const requestRoomObject = new RoomObject(state, {});
+    // Diplomacy removes attacks on both sides of its border, including blessings.
+    for (const peacefulProvince of sharedBorder.provinces) {
+        const peacefulRoom = createRaidFixture(true);
+        const ownerId = peacefulRoom.game.provinces[peacefulProvince];
+        peacefulRoom.game.orders[0] = {
+            id: 'peace', playerId: ownerId,
+            token: { id: 'peace-token', type: 'diplomacy', strength: null },
+            target: { kind: 'province', id: peacefulProvince }
+        };
+        peacefulRoom.game.orders.push({
+            id: 'army-blessing', playerId: 'defender',
+            token: { id: 'army-blessing-token', type: 'blessing', strength: 2 },
+            target: { kind: 'order', id: 'army' }
+        });
+        new ProductionRoomObject({ storage: {} }, {}).resolveRound(peacefulRoom);
+        assert.equal(peacefulRoom.game.provinceSpecials[peacefulProvince], 'peace');
+        const peaceStep = peacefulRoom.game.resolution.steps.find(step => step.kind === 'diplomacy');
+        assert.ok(!peaceStep.activeOrderIds.includes('army'));
+        assert.ok(!peaceStep.activeOrderIds.includes('army-blessing'));
+        assert.equal(peaceStep.activeOrderIds.includes('fleet'), peacefulProvince !== southShadowlands);
+        assert.equal(peacefulRoom.game.provinces[southShadowlands],
+            peacefulProvince === southShadowlands ? 'raider' : 'defender');
+    }
+
+    // A Unicorn move must not bypass an existing peace/scorched border.
+    for (const special of [undefined, 'peace', 'scorched']) {
+        for (const [kind, blockedProvince] of [
+            ['land-border', northShadowlands],
+            ['land-border', southShadowlands],
+            ['sea-border', southShadowlands]
+        ]) {
+            for (const type of [kind === 'land-border' ? 'army' : 'fleet', 'blank']) {
+                const movedRoom = createRaidFixture(false);
+                if (special) movedRoom.game.provinceSpecials[blockedProvince] = special;
+                movedRoom.game.attemptedAttackProvinceIds = [];
+                movedRoom.game.orders = [{
+                    id: 'moved', playerId: 'defender', movedByUnicorn: true,
+                    token: { id: 'moved-token', type, strength: type === 'blank' ? null : 5 },
+                    target: { kind, id: kind === 'land-border' ? sharedBorder.id : southSeaBorder.id,
+                        provinceId: southShadowlands }
+                }];
+                // Keep the source valid, so the special marker is the only rejection reason.
+                movedRoom.players.find(player => player.id === 'defender').clanId = 'unicorn';
+                movedRoom.players.forEach(player => { player.kind = 'human'; });
+                Object.values(movedRoom.game.players).forEach(player => {
+                    player.secretObjectiveId = SECRET_OBJECTIVES[0].id;
+                });
+                let persisted = structuredClone(movedRoom);
+                const production = new ProductionRoomObject({ storage: {
+                    get: async () => structuredClone(persisted),
+                    put: async (_key, value) => { persisted = structuredClone(value); }
+                } }, {});
+                const response = await production.fetch(new Request('https://room/game/advance', {
+                    method: 'POST', headers: { 'x-player-token': 'raider-token' },
+                    body: JSON.stringify({ expectedPhase: 'reveal' })
+                }));
+                assert.equal(response.status, 200);
+                assert.equal(persisted.game.phase, 'resolution');
+                assert.equal(persisted.game.resolution.orders.some(order => order.id === 'moved'),
+                    !special, `${type} on ${kind} touching ${special} must be discarded before resolution`);
+                assert.equal(persisted.game.provinces[southShadowlands],
+                    !special && type !== 'blank' ? 'defender' : 'raider');
+                if (special) {
+                    assert.ok(persisted.game.log.some(entry => entry.type === 'card' &&
+                        entry.message.includes('мира или выжженной земли')));
+                    const destination = type === 'blank' ? 'hand' : 'discard';
+                    assert.ok(persisted.game.players.defender[destination].some(token => token.id === 'moved-token'));
+                }
+            }
+        }
+    }
     assert.equal(SECRET_OBJECTIVES.length, 12, 'Должно быть ровно 12 тайных целей');
     for (const [clanId, rule] of Object.entries(CLAN_RULES)) {
         const tokenPool = roomObject.createTokenPool(clanId);
@@ -497,6 +569,12 @@ try {
         shugenjaRoom
     );
     assert.equal(shugenjaResponse.status, 200);
+    const shugenjaEvent = shugenjaRoom.game.log.find(entry => entry.cardAction?.type === 'shugenja');
+    assert.ok(shugenjaEvent, 'Сюгэндзя должен публиковать событие для уведомления всех игроков');
+    assert.equal(shugenjaEvent.cardAction.affectedPlayerId, 'defender');
+    assert.equal(shugenjaEvent.playerId, 'raider');
+    assert.equal(shugenjaEvent.provinceId, southShadowlands);
+    assert.ok(shugenjaEvent.message.includes(map.PROVINCE_NAMES[southShadowlands]));
     assert.deepEqual(shugenjaRoom.game.attemptedAttackProvinceIds, [southShadowlands]);
     assert.deepEqual(shugenjaRoom.game.cancelledAttackProvinceIds, [southShadowlands]);
     shugenjaRoom.game.phase = 'reveal';

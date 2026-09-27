@@ -35,7 +35,7 @@ export const PROVINCES: ProvinceDefinition[] = [
     { id: 'orangephoenix_province_2_06', legacyId: 'province-03', name: 'Земли клана Феникса', x: 645, y: 211 },
     { id: 'orangephoenix_capital_2_04', legacyId: 'province-04', name: 'Столица клана Феникса', x: 748, y: 188 },
     { id: 'orangephoenix_province_1_05', legacyId: 'province-05', name: 'Земли клана Феникса', x: 822, y: 169 },
-    { id: 'purpleunicorn_capital_2_07', legacyId: 'province-06', name: 'Столица клана Единорога', x: 177, y: 266 },
+    { id: 'purpleunicorn_capital_2_07', legacyId: 'province-06', name: 'Столица клана Единорога', x: 220, y: 303 },
     { id: 'yellowlion_province_2_12', legacyId: 'province-07', name: 'Земли клана Льва', x: 424, y: 369 },
     { id: 'yellowlion_province_2_11', legacyId: 'province-08', name: 'Земли клана Льва', x: 689, y: 463 },
     { id: 'lightbluecrane_province_2_17', legacyId: 'province-09', name: 'Земли клана Журавля', x: 646, y: 726 },
@@ -47,7 +47,7 @@ export const PROVINCES: ProvinceDefinition[] = [
     { id: 'greendragon_province_3_03', legacyId: 'province-15', name: 'Земли клана Дракона', x: 589, y: 394 },
     { id: 'lavenderislands_province_1_27', legacyId: 'province-16', name: 'Лавандовые острова', x: 683, y: 1248 },
     { id: 'blackshadowlandssouth_province_1_30', legacyId: 'province-17', name: 'Южные Земли Теней', x: 175, y: 1295 },
-    { id: 'purpleunicorn_province_1_08', legacyId: 'province-18', name: 'Земли клана Единорога', x: 154, y: 401 },
+    { id: 'purpleunicorn_province_1_08', legacyId: 'province-18', name: 'Земли клана Единорога', x: 170, y: 448 },
     { id: 'graycrab_province_2_22', legacyId: 'province-19', name: 'Земли клана Краба', x: 306, y: 954 },
     { id: 'goldcoast_province_2_24', legacyId: 'province-20', name: 'Золотое побережье', x: 575, y: 952 },
     { id: 'redscorpion_capital_2_13', legacyId: 'province-21', name: 'Столица клана Скорпиона', x: 481, y: 685 },
@@ -243,7 +243,7 @@ export const SEA_BORDERS: SeaBorder[] = [
     sea(23, 395, 1270),
     sea(17, 300, 1390),
     sea(16, 730, 1320),
-    sea(22, 900, 1080),
+    sea(22, 805, 1000),
     sea(28, 900, 1250)
 ];
 

@@ -4,7 +4,6 @@ import {
 } from '../../../shared/room';
 import type { SelectedClanAction } from '../types';
 import { ClanMon } from '../../components/ClanMon';
-import { ClanBadge } from '../hud/PlayerIdentity';
 import { SecretObjectiveTab } from '../objectives/SecretObjectiveTab';
 import { TOKEN_INFO, clanStyle } from '../presentation';
 import { ActionCardHand } from './ActionCardHand';
@@ -17,7 +16,6 @@ interface PlayerRackProps {
     currentStats: GamePlayerView;
     turnPlayer?: RoomPlayer;
     busy: boolean;
-    isMyTurn: boolean;
     canPlaceOrder: boolean;
     canPlaceControl: boolean;
     setupComplete: boolean;
@@ -34,17 +32,17 @@ interface PlayerRackProps {
 }
 
 export function PlayerRack(props: PlayerRackProps) {
-    const { game, currentPlayer, currentStats, turnPlayer, busy, isMyTurn, canPlaceOrder, canPlaceControl,
+    const { game, currentPlayer, currentStats, turnPlayer, busy, canPlaceOrder, canPlaceControl,
         setupComplete, mustReturnDragonToken, canUseScorpionPeek, selectedToken, selectedActionCard,
         selectedClanAction, unicornOrderIds, onSelectActionCard, onToggleScorpion, onSelectToken,
         onReturnDragonToken } = props;
+    if (game.phase === 'finished')
+        return <section className="private-rack is-finished" aria-label="Тайная цель">
+            <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished />
+        </section>;
     const hint = rackHint(game, currentStats, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken, unicornOrderIds.length);
-    return <section className="private-rack" aria-label="Ваша область">
-        <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished={game.phase === 'finished'} />
-        <div className="rack-player"><ClanBadge player={currentPlayer} /><div>
-            <span>Ваша область · скрыта от соперников</span><strong>{currentPlayer.name}</strong>
-            <small>{isMyTurn ? 'Ваш ход' : phaseStatus(game.phase, turnPlayer?.name)}</small>
-        </div></div>
+    return <section className="private-rack" aria-label="Тайная цель и ваши жетоны">
+        <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished={false} />
         <TokenInventory rows={game.tokenPool} />
         <div className="token-hand">
             {game.phase === 'setup' && <div className="setup-control-prompt">
@@ -62,12 +60,11 @@ export function PlayerRack(props: PlayerRackProps) {
                     disabled={busy || !canUseScorpionPeek} onClick={onToggleScorpion} title={CLAN_RULES.scorpion.ability}>
                     <ClanMon clanId="scorpion" className="clan-action-card-mon" /><b>Подглядеть</b><em>{currentStats.clanAbilityUsed ? '✓' : '1×'}</em>
                 </button>}
-            {game.phase !== 'setup' && game.phase !== 'finished' && game.hand.map(token => <OrderToken key={token.id} token={token}
+            {game.phase !== 'setup' && game.hand.map(token => <OrderToken key={token.id} token={token}
                 selected={token.id === selectedToken?.id} returnMode={mustReturnDragonToken}
                 disabled={mustReturnDragonToken ? busy || token.type === 'blank' : !canPlaceOrder || busy ||
                     (currentStats.isRonin && (token.type === 'raid' || token.type === 'diplomacy'))}
                 onClick={() => mustReturnDragonToken ? void onReturnDragonToken(token.id) : onSelectToken(token)} />)}
-            {game.phase === 'finished' && <div className="empty-hand">Матч завершён.</div>}
         </div>
         <div className="rack-note">
             <strong>{rackTitle(game, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken)}</strong>
@@ -101,10 +98,3 @@ function rackHint(game: GameViewState, stats: GamePlayerView, dragon: boolean, c
         : '';
 }
 
-function phaseStatus(phase: string, turnName?: string): string {
-    if (phase === 'setup') return `Расставляет ${turnName ?? '—'}`;
-    if (phase === 'reveal') return 'Приказы открыты · ждём готовности';
-    if (phase === 'resolution') return 'Результаты рассчитаны';
-    if (phase === 'finished') return 'Матч завершён';
-    return `Ход игрока ${turnName ?? '—'}`;
-}

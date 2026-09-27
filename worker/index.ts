@@ -139,6 +139,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return forward(request, roomStub, `/players/${encodeURIComponent(parts[4])}`);
     if (request.method === 'POST' && parts[3] === 'start')
         return forward(request, roomStub, '/start');
+    if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'restart')
+        return forward(request, roomStub, '/game/restart');
     if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'advance')
         return forward(request, roomStub, '/game/advance');
     if (request.method === 'POST' && parts[3] === 'game' && parts[4] === 'objective')

@@ -152,6 +152,7 @@ export interface GameLogEntry {
     details?: string;
     provinceId?: string;
     playerId?: string;
+    cardAction?: { type: 'shugenja'; affectedPlayerId: string };
 }
 
 export interface ResolutionStepView {
