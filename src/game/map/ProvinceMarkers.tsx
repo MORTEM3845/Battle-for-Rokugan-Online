@@ -11,6 +11,16 @@ interface ProvinceMarkerProps {
     playersById: Record<string, RoomPlayer>;
 }
 
+export function HonorMarkers() {
+    return <>{PROVINCE_IDS.map(provinceId => {
+        const point = PROVINCE_CENTERS[provinceId];
+        return <span key={`honor-${provinceId}`} className="honor-marker"
+            style={markerStyle(point.x, point.y)} aria-hidden="true">
+            {'★'.repeat(PROVINCE_HONOR[provinceId] ?? 0)}
+        </span>;
+    })}</>;
+}
+
 export function ControlMarkers({ game, playersById, hoveredPlayerId }: ProvinceMarkerProps & { hoveredPlayerId: string | null }) {
     return <>{Object.entries(game.provinces).map(([provinceId, playerId]) => {
         if (!playerId)
@@ -43,7 +53,7 @@ export function DefenseMarkers({ game, playersById }: ProvinceMarkerProps) {
         if (bonus <= 0 || !point)
             return null;
         return <span key={`defense-${provinceId}`} className="defense-marker"
-            style={markerStyle(point.x + 25, point.y - 20)}
+            style={markerStyle(point.x, point.y)}
             title={`${PROVINCE_NAMES[provinceId]}: общая защита +${bonus}` +
                 `${owner?.clanId === 'crab' && earnedMarkers > 0 ? ` (${earnedMarkers} открытых жетонов Краба × 3)` : ''}`}>
             🛡<b>+{bonus}</b>

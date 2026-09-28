@@ -1,10 +1,11 @@
 import {
-    adjacentProvinceIds, CLAN_CAPITALS, COASTAL_PROVINCES, PROVINCE_HONOR, PROVINCE_IDS,
-    PROVINCE_NAMES, PROVINCE_REGIONS, REGIONS, SHADOWLANDS_PROVINCES
+    PROVINCE_HONOR, PROVINCE_IDS, PROVINCE_NAMES, REGIONS, SHADOWLANDS_PROVINCES
 } from '../../shared/map';
 import { SECRET_OBJECTIVES_BY_ID, type SecretObjectiveId } from '../../shared/objectives';
-import type { ClanId, GameResultView } from '../../shared/room';
+import type { GameResultView } from '../../shared/room';
+import { getSecretObjectiveProgress } from '../../shared/objectiveProgress';
 import type { StoredRoom } from '../room/types';
+export { hasConnectedProvinceGroup } from '../../shared/objectiveProgress';
 
 export function calculateGameResults(room: StoredRoom): GameResultView[] {
     const game = room.game;
@@ -67,46 +68,7 @@ export function calculateGameResults(room: StoredRoom): GameResultView[] {
 export function isSecretObjectiveAchieved(
     objectiveId: SecretObjectiveId, controlledProvinceIds: string[], hasFewestProvinces: boolean
 ): boolean {
-    const controlled = new Set(controlledProvinceIds);
-    const controlsClanCapitalOrTwo = (clanId: ClanId, regionId: string) =>
-        controlled.has(CLAN_CAPITALS[clanId]) || controlledProvinceIds.filter(id => PROVINCE_REGIONS[id] === regionId).length >= 2;
-    switch (objectiveId) {
-        case 'five_winds_court': return controlsClanCapitalOrTwo('unicorn', 'purpleunicorn');
-        case 'great_northern_wall': return controlsClanCapitalOrTwo('dragon', 'greendragon');
-        case 'lair_of_secrets': return controlsClanCapitalOrTwo('scorpion', 'redscorpion');
-        case 'last_line': return controlsClanCapitalOrTwo('crab', 'graycrab');
-        case 'fields_of_battle': return controlsClanCapitalOrTwo('lion', 'yellowlion');
-        case 'great_library': return controlsClanCapitalOrTwo('phoenix', 'orangephoenix');
-        case 'rice_of_the_empire': return controlsClanCapitalOrTwo('crane', 'lightbluecrane');
-        case 'emerald_of_the_empire': return hasConnectedProvinceGroup(controlled, 6, 3);
-        case 'path_of_the_sail': return controlledProvinceIds.filter(id => COASTAL_PROVINCES.has(id)).length >= 6;
-        case 'reclaiming_lost_lands': return [...SHADOWLANDS_PROVINCES].every(id => controlled.has(id));
-        case 'path_of_humanity': return hasFewestProvinces;
-        case 'web_of_influence': return new Set(controlledProvinceIds.map(id => PROVINCE_REGIONS[id])).size >= 7;
-    }
-}
-
-export function hasConnectedProvinceGroup(controlledProvinceIds: Set<string>, provinceCount: number, regionCount: number): boolean {
-    const visitedGroups = new Set<string>();
-    const canComplete = (selected: Set<string>): boolean => {
-        const key = [...selected].sort().join('|');
-        if (visitedGroups.has(key)) return false;
-        visitedGroups.add(key);
-        const selectedRegions = new Set([...selected].map(id => PROVINCE_REGIONS[id]));
-        if (selectedRegions.size > regionCount) return false;
-        if (selected.size === provinceCount) return selectedRegions.size === regionCount;
-        const frontier = new Set([...selected].flatMap(id => adjacentProvinceIds(id))
-            .filter(id => controlledProvinceIds.has(id) && !selected.has(id)));
-        for (const provinceId of frontier) {
-            const next = new Set(selected);
-            next.add(provinceId);
-            if (canComplete(next)) return true;
-        }
-        return false;
-    };
-    for (const provinceId of controlledProvinceIds)
-        if (canComplete(new Set([provinceId]))) return true;
-    return false;
+    return getSecretObjectiveProgress(objectiveId, controlledProvinceIds, hasFewestProvinces).achieved;
 }
 
 function sumHonor(sources: Array<{ honor: number }>): number {

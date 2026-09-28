@@ -19,6 +19,52 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 try {
     const { buildTerritoryState } = await vite.ssrLoadModule('/src/game/map/territoryState.ts');
     const { PROVINCE_IDS, REGIONS } = await vite.ssrLoadModule('/shared/map.ts');
+    const { getSecretObjectiveProgress } = await vite.ssrLoadModule('/shared/objectiveProgress.ts');
+    const { SECRET_OBJECTIVES_BY_ID } = await vite.ssrLoadModule('/shared/objectives.ts');
+    const { SecretObjectiveTab } = await vite.ssrLoadModule('/src/game/objectives/SecretObjectiveTab.tsx');
+    {
+        const north = REGIONS.find(region => region.id === 'blackshadowlandsnorth').provinceIds[0];
+        const south = REGIONS.find(region => region.id === 'blackshadowlandssouth').provinceIds[0];
+        const dragon = REGIONS.find(region => region.id === 'greendragon');
+        const owned = [...dragon.provinceIds, north];
+        const progress = () => getSecretObjectiveProgress('web_of_influence', owned, false);
+        assert.equal(progress().current, 2, 'Multiple provinces in one territory count once');
+        assert.equal(progress().items.find(item => item.id === dragon.id).count, 3);
+        assert.equal(progress().items.find(item => item.id === 'blackshadowlandsnorth').controlled, true);
+        assert.equal(progress().items.find(item => item.id === 'blackshadowlandssouth').controlled, false);
+        owned.push(south);
+        assert.equal(progress().current, 3, 'North and South Shadowlands count as separate territories');
+        REGIONS.filter(region => ![dragon.id, 'blackshadowlandsnorth', 'blackshadowlandssouth'].includes(region.id))
+            .slice(0, 4).forEach(region => owned.push(region.provinceIds[0]));
+        assert.equal(progress().current, 7);
+        assert.equal(progress().achieved, true);
+        owned.pop();
+        assert.equal(progress().current, 6);
+        assert.equal(progress().achieved, false, 'Losing the last province removes territory credit');
+        assert.equal(getSecretObjectiveProgress('reclaiming_lost_lands', [north], false).current, 1);
+        assert.equal(getSecretObjectiveProgress('reclaiming_lost_lands', [north, south], false).achieved, true);
+        assert.equal(getSecretObjectiveProgress('great_northern_wall', [dragon.provinceIds.find(id => id.includes('_capital_'))], false).achieved,
+            true, 'A single capital satisfies the alternative requirement');
+        assert.equal(getSecretObjectiveProgress('great_northern_wall', dragon.provinceIds.filter(id => !id.includes('_capital_')), false).achieved, true);
+        assert.equal(getSecretObjectiveProgress('path_of_humanity', [], true).achieved, true, 'A tie for fewest provinces counts');
+        const connected = ['redscorpion_province_1_15', 'redscorpion_province_3_14',
+            'yellowlion_province_2_12', 'yellowlion_capital_2_10', 'greendragon_province_3_03', 'greendragon_capital_2_01'];
+        assert.equal(getSecretObjectiveProgress('emerald_of_the_empire', connected, false).achieved, true);
+        assert.equal(getSecretObjectiveProgress('emerald_of_the_empire', connected.slice(0, 5), false).current, 5);
+        assert.equal(getSecretObjectiveProgress('emerald_of_the_empire', REGIONS.find(region => region.id === 'lavenderislands').provinceIds, false).achieved, false);
+        const game = {
+            phase: 'placement', secretObjective: SECRET_OBJECTIVES_BY_ID.web_of_influence, secretObjectiveAchieved: false,
+            provinces: Object.fromEntries(PROVINCE_IDS.map(id => [id, owned.includes(id) ? 'me' : null])),
+            players: [{ playerId: 'me' }, { playerId: 'other' }]
+        };
+        const render = () => renderToStaticMarkup(createElement(SecretObjectiveTab, { game, currentPlayerId: 'me' }));
+        assert.ok(render().includes('6 / 7') && render().includes('Северные Земли Теней') && render().includes('Южные Земли Теней'));
+        game.secretObjective = SECRET_OBJECTIVES_BY_ID.path_of_humanity;
+        game.provinces = Object.fromEntries(PROVINCE_IDS.map(id => [id, null]));
+        assert.ok(render().includes('0 / 0'), 'Minimum is calculated from the displayed map, including ties');
+        game.secretObjective = null;
+        assert.equal(render(), '', 'Spectators and players without an objective receive no objective card');
+    }
     const { TerritoryLayer, RegionControlMarkers } = await vite.ssrLoadModule('/src/game/map/TerritoryLayer.tsx');
     {
         const region = REGIONS.find(region => region.id === 'greendragon');

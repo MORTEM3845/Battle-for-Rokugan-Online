@@ -102,8 +102,12 @@ export function RoomChat({ session, currentPlayer, mode }: RoomChatProps) {
             aria-label={language === 'ru' ? 'Чат комнаты' : 'Room chat'}>
             <div className="chat-paper">
             <header><div><span>{language === 'ru' ? 'Комната' : 'Room'} {session.roomCode}</span>
-                <h2>{language === 'ru' ? 'Чат игроков' : 'Player chat'}</h2></div>
-                <button onClick={close} aria-label={language === 'ru' ? 'Закрыть чат' : 'Close chat'}>×</button></header>
+                <h2>{language === 'ru' ? 'Чат даймё' : 'Daimyo chat'}</h2></div>
+                <button onClick={close} aria-label={language === 'ru' ? 'Закрыть чат' : 'Close chat'}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                </button></header>
             <div ref={listRef} className="chat-messages">
                 {messages.length === 0 && <div className="chat-empty"><span aria-hidden="true">文</span><p>{language === 'ru'
                     ? 'Сообщений пока нет. Можно обсудить правила или напомнить сопернику о ходе.'

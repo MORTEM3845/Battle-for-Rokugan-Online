@@ -44,7 +44,7 @@
 .chat-paper > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 22px; padding: 24px 0 16px; border-bottom: 1px solid #86613b40; }
 .chat-paper > header span { color: #925036; font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 .chat-paper > header h2 { margin: 5px 0 0; color: #3c2c21; font-family: Georgia, serif; font-size: 24px; }
-.chat-paper > header button { flex-shrink: 0; width: 30px; height: 30px; padding: 0; border: 1px solid #86613b50; border-radius: 50%; color: #745035; background: transparent; font-size: 23px; }
+.chat-paper > header button { flex-shrink: 0; align-self: flex-start; display: grid; place-items: center; width: 30px; height: 30px; margin: 0; padding: 0; border: 1px solid #86613b50; border-radius: 50%; color: #745035; background: transparent; }
 .chat-paper > header button:hover { background: #a5783920; }
 .chat-messages { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 22px; overscroll-behavior: contain; scrollbar-color: #a08055 transparent; scrollbar-width: thin; }
 .chat-empty { margin: auto; padding: 20px 5px; color: #795e44; text-align: center; }

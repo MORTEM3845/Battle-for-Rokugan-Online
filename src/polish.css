@@ -215,14 +215,6 @@ body:has(.lobby-page) { background-attachment: fixed; }
 }
 .turn-banner-close:hover:not(:disabled) { transform: none; color: #fff0cd; background: rgba(80, 42, 25, .72); }
 
-.rotated-map::after {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    content: "";
-    background: url('/assets/rokugan-honor-stars.svg') center / 100% 100% no-repeat;
-    pointer-events: none;
-}
 .province-map:has(.target-legend:not(.action-card-legend):not(.clan-action-legend):not(.setup-legend)) .border-target:not(.is-active) {
     opacity: .24;
     border-style: solid;

@@ -38,11 +38,11 @@ export function PlayerRack(props: PlayerRackProps) {
         onReturnDragonToken } = props;
     if (game.phase === 'finished')
         return <section className="private-rack is-finished" aria-label="Тайная цель">
-            <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished />
+            <SecretObjectiveTab game={game} currentPlayerId={currentPlayer.id} />
         </section>;
     const hint = rackHint(game, currentStats, mustReturnDragonToken, selectedClanAction, selectedActionCard, selectedToken, unicornOrderIds.length);
     return <section className="private-rack" aria-label="Тайная цель и ваши жетоны">
-        <SecretObjectiveTab objective={game.secretObjective} achieved={game.secretObjectiveAchieved} finished={false} />
+        <SecretObjectiveTab game={game} currentPlayerId={currentPlayer.id} />
         <TokenInventory rows={game.tokenPool} />
         <div className="token-hand">
             {game.phase === 'setup' && <div className="setup-control-prompt">

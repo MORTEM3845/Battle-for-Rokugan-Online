@@ -27,7 +27,7 @@ import { ClanMon } from '../components/ClanMon';
 import { OrderIcon } from './OrderIcon';
 import { angleToward, markerStyle, orderPlacement, pointToward } from './map/geometry';
 import { MapViewport } from './map/MapViewport';
-import { ControlMarkers, DefenseMarkers, SpecialMarkers } from './map/ProvinceMarkers';
+import { ControlMarkers, DefenseMarkers, HonorMarkers, SpecialMarkers } from './map/ProvinceMarkers';
 import { provinceIsEligible } from './map/targeting';
 import { buildTerritoryState } from './map/territoryState';
 import { RegionControlMarkers, TerritoryLayer } from './map/TerritoryLayer';
@@ -161,6 +161,7 @@ export function ProvinceMap(props: ProvinceMapProps) {
             <TerritoryLayer state={territoryState} hoveredPlayerId={hoveredPlayerId} />
 
             <div className="map-markers">
+                <HonorMarkers />
                 <ControlMarkers game={game} playersById={playersById} hoveredPlayerId={hoveredPlayerId} />
                 <DefenseMarkers game={game} playersById={playersById} />
                 <SpecialMarkers game={game} />

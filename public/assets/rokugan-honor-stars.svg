@@ -6,35 +6,35 @@
   </defs>
   <g fill="#ffe46f" stroke="#6d3d19" stroke-width="1.5" paint-order="stroke" filter="url(#shadow)"
      font-family="Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" text-anchor="middle">
-    <text x="526" y="137" transform="rotate(-90 526 137)">★★</text>
-    <text x="237" y="105" transform="rotate(-90 237 105)">★</text>
-    <text x="649" y="173" transform="rotate(-90 649 173)">★★</text>
-    <text x="748" y="150" transform="rotate(-90 748 150)">★★</text>
-    <text x="822" y="131" transform="rotate(-90 822 131)">★</text>
-    <text x="268" y="269" transform="rotate(-90 268 269)">★★</text>
-    <text x="420" y="323" transform="rotate(-90 420 323)">★★</text>
-    <text x="579" y="358" transform="rotate(-90 579 358)">★★★</text>
-    <text x="176" y="392" transform="rotate(-90 176 392)">★</text>
-    <text x="320" y="376" transform="rotate(-90 320 376)">★★★</text>
-    <text x="697" y="423" transform="rotate(-90 697 423)">★★</text>
-    <text x="548" y="478" transform="rotate(-90 548 478)">★★</text>
-    <text x="411" y="501" transform="rotate(-90 411 501)">★★★</text>
-    <text x="240" y="546" transform="rotate(-90 240 546)">★</text>
-    <text x="669" y="577" transform="rotate(-90 669 577)">★★</text>
-    <text x="481" y="647" transform="rotate(-90 481 647)">★★</text>
-    <text x="144" y="664" transform="rotate(-90 144 664)">★</text>
-    <text x="646" y="686" transform="rotate(-90 646 686)">★★</text>
-    <text x="340" y="738" transform="rotate(-90 340 738)">★★★</text>
-    <text x="489" y="774" transform="rotate(-90 489 774)">★★★</text>
-    <text x="300" y="910" transform="rotate(-90 300 910)">★★</text>
-    <text x="450" y="926" transform="rotate(-90 450 926)">★★★</text>
-    <text x="575" y="914" transform="rotate(-90 575 914)">★★</text>
-    <text x="72" y="945" transform="rotate(-90 72 945)">★</text>
-    <text x="802" y="1055" transform="rotate(-90 802 1055)">★★</text>
-    <text x="322" y="1110" transform="rotate(-90 322 1110)">★★</text>
-    <text x="428" y="1146" transform="rotate(-90 428 1146)">★★★</text>
-    <text x="683" y="1210" transform="rotate(-90 683 1210)">★</text>
-    <text x="808" y="1193" transform="rotate(-90 808 1193)">★</text>
-    <text x="169" y="1255" transform="rotate(-90 169 1255)">★</text>
+    <text data-province-id="greendragon_province_1_02" x="213" y="145" dominant-baseline="central" transform="rotate(-90 213 145)">★</text>
+    <text data-province-id="greendragon_capital_2_01" x="488" y="187" dominant-baseline="central" transform="rotate(-90 488 187)">★★</text>
+    <text data-province-id="orangephoenix_province_2_06" x="617" y="211" dominant-baseline="central" transform="rotate(-90 617 211)">★★</text>
+    <text data-province-id="orangephoenix_capital_2_04" x="684" y="124" dominant-baseline="central" transform="rotate(-90 684 124)">★★</text>
+    <text data-province-id="orangephoenix_province_1_05" x="806" y="121" dominant-baseline="central" transform="rotate(-90 806 121)">★</text>
+    <text data-province-id="purpleunicorn_capital_2_07" x="176" y="295" dominant-baseline="central" transform="rotate(-90 176 295)">★★</text>
+    <text data-province-id="yellowlion_province_2_12" x="400" y="373" dominant-baseline="central" transform="rotate(-90 400 373)">★★</text>
+    <text data-province-id="yellowlion_province_2_11" x="661" y="487" dominant-baseline="central" transform="rotate(-90 661 487)">★★</text>
+    <text data-province-id="lightbluecrane_province_2_17" x="606" y="726" dominant-baseline="central" transform="rotate(-90 606 726)">★★</text>
+    <text data-province-id="graycrab_province_3_21" x="304" y="764" dominant-baseline="central" transform="rotate(-90 304 764)">★★★</text>
+    <text data-province-id="blackshadowlandsnorth_province_1_29" x="56" y="983" dominant-baseline="central" transform="rotate(-90 56 983)">★</text>
+    <text data-province-id="goldcoast_province_3_25" x="412" y="1148" dominant-baseline="central" transform="rotate(-90 412 1148)">★★★</text>
+    <text data-province-id="redscorpion_province_1_15" x="232" y="576" dominant-baseline="central" transform="rotate(-90 232 576)">★</text>
+    <text data-province-id="redscorpion_province_3_14" x="387" y="539" dominant-baseline="central" transform="rotate(-90 387 539)">★★★</text>
+    <text data-province-id="greendragon_province_3_03" x="569" y="402" dominant-baseline="central" transform="rotate(-90 569 402)">★★★</text>
+    <text data-province-id="lavenderislands_province_1_27" x="667" y="1232" dominant-baseline="central" transform="rotate(-90 667 1232)">★</text>
+    <text data-province-id="blackshadowlandssouth_province_1_30" x="143" y="1295" dominant-baseline="central" transform="rotate(-90 143 1295)">★</text>
+    <text data-province-id="purpleunicorn_province_1_08" x="138" y="444" dominant-baseline="central" transform="rotate(-90 138 444)">★</text>
+    <text data-province-id="graycrab_province_2_22" x="274" y="954" dominant-baseline="central" transform="rotate(-90 274 954)">★★</text>
+    <text data-province-id="goldcoast_province_2_24" x="555" y="952" dominant-baseline="central" transform="rotate(-90 555 952)">★★</text>
+    <text data-province-id="redscorpion_capital_2_13" x="453" y="669" dominant-baseline="central" transform="rotate(-90 453 669)">★★</text>
+    <text data-province-id="lavenderislands_province_2_26" x="758" y="1085" dominant-baseline="central" transform="rotate(-90 758 1085)">★★</text>
+    <text data-province-id="graycrab_capital_2_19" x="296" y="1142" dominant-baseline="central" transform="rotate(-90 296 1142)">★★</text>
+    <text data-province-id="purpleunicorn_province_3_09" x="300" y="416" dominant-baseline="central" transform="rotate(-90 300 416)">★★★</text>
+    <text data-province-id="lightbluecrane_capital_2_16" x="637" y="615" dominant-baseline="central" transform="rotate(-90 637 615)">★★</text>
+    <text data-province-id="graycrab_province_1_20" x="112" y="702" dominant-baseline="central" transform="rotate(-90 112 702)">★</text>
+    <text data-province-id="goldcoast_province_3_23" x="410" y="964" dominant-baseline="central" transform="rotate(-90 410 964)">★★★</text>
+    <text data-province-id="lavenderislands_province_1_28" x="768" y="1231" dominant-baseline="central" transform="rotate(-90 768 1231)">★</text>
+    <text data-province-id="yellowlion_capital_2_10" x="524" y="524" dominant-baseline="central" transform="rotate(-90 524 524)">★★</text>
+    <text data-province-id="lightbluecrane_province_3_18" x="453" y="790" dominant-baseline="central" transform="rotate(-90 453 790)">★★★</text>
   </g>
 </svg>
