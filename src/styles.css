@@ -41,15 +41,61 @@ h2 { margin-bottom: 4px; font-family: Georgia, serif; }
 .lobby-page > .panel + .panel { margin-top: 18px; }
 .section-title { margin-bottom: 18px; }
 .section-title p, .action-panel p { margin: 0; color: #a9998d; }
-.players-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
-.player-card { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 16px; border: 1px solid #514038; border-radius: 14px; background: #1b1512; }
-.player-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; font-weight: 800; background: #73332f; }
-.player-clan-avatar { border: 1px solid rgba(218, 187, 137, .42); background: radial-gradient(circle, rgba(248, 230, 192, .16), rgba(28, 19, 14, .82)); }
-.player-info { display: grid; gap: 3px; }
-.player-info span { color: #9f9187; font-size: 13px; }
-.status { padding: 5px 8px; border-radius: 999px; color: #b6a79b; background: #302722; font-size: 12px; }
-.status.ready { color: #b8e4bd; background: #203625; }
-.player-card .danger { grid-column: 2 / -1; justify-self: start; }
+.players-heading { min-height: 42px; margin-bottom: 14px; }
+.players-title { display: flex; align-items: baseline; gap: 16px; }
+.players-title h2 { margin: 0; color: #eee0c7; font-size: 27px; font-weight: 400; }
+.players-count { color: #e0c99f; font-size: 13px; font-variant-numeric: tabular-nums; }
+.players-count > span { color: #a59681; }
+.add-bot-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 40px; padding: 8px 12px; border-color: #65543f; border-radius: 3px; color: #d9c7a9; background: transparent; font-size: 12px; }
+.add-bot-button > span { color: #c0a16a; font-size: 22px; font-weight: 300; line-height: 1; }
+.add-bot-button:hover:not(:disabled) { transform: none; border-color: #a58a5c; background: rgba(199, 164, 110, .06); }
+.players-grid { display: grid; border-top: 1px solid #5c4c37; }
+.player-card { --clan-accent: #b7a78d; position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(130px, .6fr) 106px 36px; align-items: center; gap: 18px; min-height: 88px; padding: 15px 0; }
+.player-card + .player-card { border-top: 1px solid rgba(199, 164, 110, .17); }
+.player-avatar { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #65543f; border-radius: 50%; color: #c7b593; font: 23px Georgia, serif; background: rgba(199, 164, 110, .04); }
+.player-clan-avatar { border: 0; border-radius: 0; background: none; }
+.player-info { min-width: 0; display: grid; gap: 5px; }
+.player-name { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.player-name > strong { min-width: 0; color: #f1e5d1; font: 19px/1.25 Georgia, serif; overflow-wrap: anywhere; }
+.player-info > span { color: #ad9e89; font-size: 11px; }
+.player-you { flex-shrink: 0; color: #c9af7d; font-size: 10px; }
+.player-clan { min-width: 0; display: grid; gap: 4px; }
+.player-clan > span { color: #ad9e89; font-size: 10px; }
+.player-clan > strong { color: var(--clan-accent); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.player-clan.is-unselected > strong { color: #ad9e89; font-size: 12px; font-weight: 400; }
+.player-card .status { display: flex; align-items: center; gap: 8px; color: #b6a58d; font-size: 11px; white-space: nowrap; }
+.player-status-mark { width: 14px; height: 14px; display: grid; place-items: center; border: 1px solid #8f7c60; border-radius: 50%; font-size: 10px; line-height: 1; }
+.player-card .status.ready { color: #b5c9a0; }
+.status.ready .player-status-mark { border-color: #8da279; }
+.player-actions { display: flex; justify-content: flex-end; }
+.player-remove { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 3px; color: #ad9e89; background: transparent; }
+.player-remove:hover:not(:disabled) { transform: none; color: #e6a096; border-color: #81514a; background: rgba(165, 67, 55, .1); }
+.players-panel button:focus-visible { outline: 2px solid #d1b37b; outline-offset: 3px; }
+
+@media (max-width: 700px) {
+    .players-panel .players-heading { flex-direction: row; align-items: center; gap: 12px; }
+    .players-title { gap: 10px; }
+    .players-title h2 { font-size: 24px; }
+    .players-panel .add-bot-button { max-width: 170px; gap: 8px; padding-inline: 8px; text-align: left; font-size: 11px; }
+    .player-card { grid-template-columns: 40px minmax(0, 1fr) 91px 32px; column-gap: 12px; row-gap: 7px; padding-block: 16px; }
+    .player-avatar { grid-row: 1 / 3; width: 40px; height: 40px; }
+    .player-info { grid-column: 2; grid-row: 1; }
+    .player-name { flex-wrap: wrap; column-gap: 7px; row-gap: 2px; }
+    .player-name > strong { font-size: 18px; }
+    .player-clan { grid-column: 2; grid-row: 2; }
+    .player-clan > span { display: none; }
+    .player-clan > strong { font-size: 12px; }
+    .player-card .status { grid-column: 3; grid-row: 1 / 3; gap: 6px; }
+    .player-actions { grid-column: 4; grid-row: 1 / 3; }
+    .player-remove { width: 32px; min-height: 40px; }
+}
+
+@media (max-width: 380px) {
+    .player-card { grid-template-columns: 34px minmax(0, 1fr) 80px 28px; column-gap: 8px; }
+    .player-avatar { width: 34px; height: 34px; }
+    .player-card .status { gap: 5px; font-size: 10px; }
+    .player-remove { width: 28px; }
+}
 
 /* The rulebook crops have different transparent margins. These offsets center
    their visible ink while keeping the same small optical padding for every mon. */

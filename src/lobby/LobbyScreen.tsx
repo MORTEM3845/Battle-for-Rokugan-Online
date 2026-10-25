@@ -34,15 +34,16 @@ export function LobbyScreen({ tools, room, currentPlayer, busy, error, actions }
             </div>
         </header>
 
-        <section className="panel">
-            <div className="section-title">
-                <div><h2>{t('room.players')}</h2><p>{room.players.length} / {room.maxPlayers}</p></div>
-                {isHost && room.players.length < room.maxPlayers && <button disabled={busy}
-                    onClick={() => void actions.addBot()}>{t('room.addBot')}</button>}
+        <section className="panel players-panel" aria-labelledby="players-heading">
+            <div className="section-title players-heading">
+                <div className="players-title"><h2 id="players-heading">{t('room.players')}</h2>
+                    <span className="players-count">{room.players.length}<span> / {room.maxPlayers}</span></span></div>
+                {isHost && room.players.length < room.maxPlayers && <button className="add-bot-button" disabled={busy}
+                    onClick={() => void actions.addBot()}><span aria-hidden="true">+</span>{t('room.addBot')}</button>}
             </div>
-            <div className="players-grid">
+            <div className="players-grid" role="list" aria-labelledby="players-heading">
                 {room.players.map(player => <PlayerCard key={player.id} player={player}
-                    removable={isHost && !player.isHost} busy={busy}
+                    current={player.id === currentPlayer.id} removable={isHost && !player.isHost} busy={busy}
                     onRemove={() => {
                         if (confirm(`${t('room.kickConfirm')} ${player.name}`))
                             void actions.kickPlayer(player.id);

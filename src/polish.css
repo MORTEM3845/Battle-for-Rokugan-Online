@@ -44,7 +44,17 @@ body:has(.lobby-page) { background-attachment: fixed; }
     clip-path: polygon(0 0, 100% 0, 100% 55%, 97% 80%, 91% 45%, 86% 100%, 79% 55%, 72% 90%, 65% 50%, 58% 85%, 50% 45%, 43% 100%, 36% 60%, 29% 85%, 22% 50%, 15% 100%, 8% 55%, 3% 85%, 0 60%);
     pointer-events: none;
 }
-.lobby-page .player-card { border-radius: 6px; }
+.lobby-page > .players-panel {
+    padding: 22px 26px 5px;
+    border-color: rgba(199, 164, 110, .28);
+    border-radius: 3px;
+    background: #201c16;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+}
+.lobby-page > .players-panel::before, .lobby-page > .players-panel::after { display: none; }
+@media (max-width: 700px) {
+    .lobby-page > .players-panel { padding: 16px 16px 2px; }
+}
 .lobby-header .header-actions { align-items: center; flex-wrap: nowrap; }
 .lobby-header .header-actions > button { white-space: nowrap; }
 .lobby-header .room-tools { position: static; flex-shrink: 0; }
