@@ -18,7 +18,7 @@ type TranslationKey =
     | 'feedback.messagePlaceholder' | 'feedback.note' | 'feedback.copy' | 'feedback.copied' | 'feedback.openGmail'
     | 'feedback.popupBlocked' | 'feedback.close'
     | 'music.play' | 'music.pause' | 'music.volume' | 'music.missing'
-    | 'clan.ability' | 'clan.uniqueToken' | 'clan.chosenBy';
+    | 'clan.ability' | 'clan.uniqueToken' | 'clan.chosenBy' | 'clan.yours';
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
     ru: {
@@ -43,7 +43,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
         'room.players': 'Игроки',
         'room.addBot': 'Добавить случайного бота',
         'room.clans': 'Выбор клана',
-        'room.clansHint': 'Кланы не могут повторяться. Нажмите карточку, чтобы выбрать даймё.',
+        'room.clansHint': 'Наведите на знамя, чтобы узнать о клане. Нажмите, чтобы выбрать.',
+        'clan.yours': 'Ваш клан',
         'room.free': 'Свободен',
         'room.ready': 'Готов',
         'room.notReady': 'Не готов',
@@ -115,7 +116,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
         'room.players': 'Players',
         'room.addBot': 'Add random bot',
         'room.clans': 'Choose a clan',
-        'room.clansHint': 'Clans cannot repeat. Select a card to choose your daimyō.',
+        'room.clansHint': 'Hover over a banner to learn about the clan. Select it to choose your clan.',
+        'clan.yours': 'Your clan',
         'room.free': 'Available',
         'room.ready': 'Ready',
         'room.notReady': 'Not ready',
